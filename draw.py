@@ -46,4 +46,4 @@ def simulate_draws(deck_file, num_draws=5):
 
 
 if __name__ == "__main__":
-    simulate_draws("deck_text/deck.txt")
+    simulate_draws("deck_text/quiver.txt")
