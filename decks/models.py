@@ -1,0 +1,247 @@
+"""
+Models for deck building and management.
+
+This module handles deck creation, card slots, and deck validation
+according to Eternal Card Game rules.
+"""
+
+from django.db import models
+from django.conf import settings
+from cards.models import Card
+
+
+class Deck(models.Model):
+    """
+    Represents a constructed deck.
+
+    A deck consists of a main deck (75-150 cards) and an optional market (up to 5 cards).
+    """
+
+    # Format choices
+    FORMAT_CHOICES = [
+        ('Throne', 'Throne'),      # All cards legal
+        ('Expedition', 'Expedition'),  # Rotating format
+    ]
+
+    # Deck name
+    name = models.CharField(max_length=200, help_text="Deck name")
+
+    # Deck format
+    format = models.CharField(
+        max_length=20,
+        choices=FORMAT_CHOICES,
+        default='Throne',
+        help_text="Game format (Throne or Expedition)"
+    )
+
+    # Optional description/notes
+    description = models.TextField(blank=True, help_text="Deck description or notes")
+
+    # === Timestamps ===
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.format})"
+
+    @property
+    def main_deck_cards(self):
+        """Returns all cards in the main deck (not market)."""
+        return self.cards.filter(is_market=False)
+
+    @property
+    def market_cards(self):
+        """Returns all cards in the market."""
+        return self.cards.filter(is_market=True)
+
+    @property
+    def main_deck_count(self):
+        """Total number of cards in main deck."""
+        return sum(dc.quantity for dc in self.main_deck_cards)
+
+    @property
+    def market_count(self):
+        """Total number of cards in market."""
+        return sum(dc.quantity for dc in self.market_cards)
+
+    @property
+    def power_count(self):
+        """Number of power cards in main deck."""
+        return sum(
+            dc.quantity for dc in self.main_deck_cards
+            if dc.card.is_power_card
+        )
+
+    @property
+    def non_power_count(self):
+        """Number of non-power cards in main deck."""
+        return sum(
+            dc.quantity for dc in self.main_deck_cards
+            if not dc.card.is_power_card
+        )
+
+    def validate_deck(self):
+        """
+        Validates the deck against Eternal deck building rules.
+
+        Returns a dict with:
+            - 'valid': bool - whether deck is valid
+            - 'errors': list - list of validation error messages
+            - 'warnings': list - list of warnings (not blocking)
+        """
+        rules = settings.DECK_RULES
+        errors = []
+        warnings = []
+
+        main_count = self.main_deck_count
+        market_count = self.market_count
+        power_count = self.power_count
+        non_power_count = self.non_power_count
+
+        # === Main deck size ===
+        if main_count < rules['MIN_DECK_SIZE']:
+            errors.append(
+                f"Main deck has {main_count} cards (minimum {rules['MIN_DECK_SIZE']})"
+            )
+        if main_count > rules['MAX_DECK_SIZE']:
+            errors.append(
+                f"Main deck has {main_count} cards (maximum {rules['MAX_DECK_SIZE']})"
+            )
+
+        # === Power ratio (at least 1/3 power) ===
+        min_power = (main_count + 2) // 3  # Rounded up
+        if power_count < min_power:
+            errors.append(
+                f"Need at least {min_power} power cards (have {power_count})"
+            )
+
+        # === Non-power ratio (at least 1/3 non-power) ===
+        min_non_power = (main_count + 2) // 3  # Rounded up
+        if non_power_count < min_non_power:
+            errors.append(
+                f"Need at least {min_non_power} non-power cards (have {non_power_count})"
+            )
+
+        # === Market size ===
+        if market_count > rules['MAX_MARKET_SIZE']:
+            errors.append(
+                f"Market has {market_count} cards (maximum {rules['MAX_MARKET_SIZE']})"
+            )
+
+        # === Card copy limits ===
+        # Check main deck card counts (max 4 of any non-sigil)
+        card_counts = {}  # card_id -> total count
+        for dc in self.main_deck_cards:
+            card_counts[dc.card_id] = card_counts.get(dc.card_id, 0) + dc.quantity
+
+        for dc in self.main_deck_cards:
+            count = card_counts.get(dc.card_id, 0)
+            if count > rules['MAX_COPIES_PER_CARD'] and not dc.card.is_sigil:
+                errors.append(
+                    f"Too many copies of {dc.card.name}: {count} (max {rules['MAX_COPIES_PER_CARD']})"
+                )
+
+        # === Market rules ===
+        # Only 1 copy of each card in market
+        for dc in self.market_cards:
+            if dc.quantity > rules['MAX_COPIES_IN_MARKET']:
+                errors.append(
+                    f"Market can only have 1 copy of {dc.card.name}"
+                )
+
+        # No card in both deck and market (except sigils and bargain)
+        main_card_ids = set(dc.card_id for dc in self.main_deck_cards)
+        for dc in self.market_cards:
+            if dc.card_id in main_card_ids:
+                if not dc.card.is_sigil and not dc.card.has_bargain:
+                    errors.append(
+                        f"{dc.card.name} cannot be in both main deck and market"
+                    )
+
+        return {
+            'valid': len(errors) == 0,
+            'errors': errors,
+            'warnings': warnings,
+        }
+
+    def export_to_eternal_format(self):
+        """
+        Exports the deck in Eternal's import/export format.
+
+        Format:
+            FORMAT:Throne
+            4 Card Name (Set# #CardNumber)
+            ...
+            ---------------MARKET---------------
+            1 Market Card (Set# #CardNumber)
+        """
+        lines = [f"FORMAT:{self.format}"]
+
+        # Main deck cards, sorted by cost then name
+        main_cards = sorted(
+            self.main_deck_cards,
+            key=lambda dc: (dc.card.cost, dc.card.name)
+        )
+        for dc in main_cards:
+            lines.append(
+                f"{dc.quantity} {dc.card.name} ({dc.card.set_card_id})"
+            )
+
+        # Market
+        if self.market_count > 0:
+            lines.append("---------------MARKET---------------")
+            for dc in self.market_cards:
+                lines.append(
+                    f"{dc.quantity} {dc.card.name} ({dc.card.set_card_id})"
+                )
+
+        return "\n".join(lines)
+
+
+class DeckCard(models.Model):
+    """
+    Represents a card slot in a deck.
+
+    Links a card to a deck with a quantity, and tracks whether
+    it's in the main deck or market.
+    """
+
+    # The deck this card belongs to
+    deck = models.ForeignKey(
+        Deck,
+        on_delete=models.CASCADE,
+        related_name='cards',
+        help_text="The deck containing this card"
+    )
+
+    # The card
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.CASCADE,
+        related_name='deck_entries',
+        help_text="The card in the deck"
+    )
+
+    # Number of copies
+    quantity = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of copies in this slot"
+    )
+
+    # Is this card in the market (sideboard)?
+    is_market = models.BooleanField(
+        default=False,
+        help_text="True if this card is in the market, False if main deck"
+    )
+
+    class Meta:
+        # A card can only appear once per deck (in main or market)
+        unique_together = ['deck', 'card', 'is_market']
+        ordering = ['is_market', 'card__cost', 'card__name']
+
+    def __str__(self):
+        location = "Market" if self.is_market else "Main"
+        return f"{self.quantity}x {self.card.name} [{location}]"
