@@ -1,0 +1,64 @@
+<!-- Card grid partial - for HTMX updates -->
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+    {% for card in cards %}
+    <div class="card-hover transition-transform duration-200 cursor-pointer"
+         hx-get="{% url 'cards:card_detail' card.pk %}"
+         hx-target="#card-modal-content"
+         hx-trigger="click"
+         onclick="document.getElementById('card-modal').classList.remove('hidden')">
+        <div class="bg-gray-800 rounded-lg overflow-hidden border-2 rarity-{{ card.rarity|lower }}">
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" alt="{{ card.name }}"
+                 class="w-full h-auto"
+                 loading="lazy">
+            {% else %}
+            <div class="aspect-[3/4] bg-gray-700 flex items-center justify-center p-2">
+                <span class="text-gray-400 text-center text-sm">{{ card.name }}</span>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-span-full text-center text-gray-400 py-8">
+        No cards found matching your filters.
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if cards.has_other_pages %}
+<div class="flex justify-center gap-2 mt-6">
+    {% if cards.has_previous %}
+    <a href="?page={{ cards.previous_page_number }}&search={{ search }}&type={{ card_type }}&faction={{ faction }}&cost={{ cost }}&rarity={{ rarity }}"
+       class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white">
+        Previous
+    </a>
+    {% endif %}
+
+    <span class="px-4 py-2 text-gray-400">
+        Page {{ cards.number }} of {{ cards.paginator.num_pages }}
+    </span>
+
+    {% if cards.has_next %}
+    <a href="?page={{ cards.next_page_number }}&search={{ search }}&type={{ card_type }}&faction={{ faction }}&cost={{ cost }}&rarity={{ rarity }}"
+       class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white">
+        Next
+    </a>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Card Detail Modal -->
+<div id="card-modal" class="hidden fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+     onclick="if(event.target === this) this.classList.add('hidden')">
+    <div class="bg-gray-800 rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="p-4 border-b border-gray-700 flex justify-between items-center">
+            <h3 class="text-lg font-semibold">Card Details</h3>
+            <button onclick="document.getElementById('card-modal').classList.add('hidden')"
+                    class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div id="card-modal-content" class="p-4">
+            <!-- Card details loaded via HTMX -->
+        </div>
+    </div>
+</div>

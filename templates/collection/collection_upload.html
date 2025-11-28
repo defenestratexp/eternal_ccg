@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Upload Collection - Eternal Forge{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Upload Collection</h1>
+
+<div class="max-w-2xl">
+    <div class="bg-gray-800 rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">How to Export from Eternal</h2>
+        <ol class="list-decimal list-inside text-gray-400 space-y-2">
+            <li>Open Eternal Card Game</li>
+            <li>Go to your Collection</li>
+            <li>Click the menu/options button</li>
+            <li>Select "Export Collection"</li>
+            <li>Copy the text or save the file</li>
+            <li>Paste below or upload the file</li>
+        </ol>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+        {% csrf_token %}
+
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Option 1: Paste Collection Text
+            </label>
+            <textarea name="content" rows="10" placeholder="Paste your collection export here..."
+                      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white font-mono text-sm"></textarea>
+        </div>
+
+        <div class="text-center text-gray-500">- OR -</div>
+
+        <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">
+                Option 2: Upload File
+            </label>
+            <input type="file" name="file" accept=".txt"
+                   class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+        </div>
+
+        <div class="flex gap-4">
+            <button type="submit"
+                    class="px-6 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white font-medium">
+                Import Collection
+            </button>
+            <a href="{% url 'collection:collection_view' %}"
+               class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white font-medium">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

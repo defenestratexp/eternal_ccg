@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-start mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">{{ deck.format }} &bull; {{ deck.main_deck_count }} cards</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'decks:deck_edit' deck.pk %}"
+           class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white text-sm">Edit</a>
+        <a href="{% url 'decks:deck_export_view' deck.pk %}"
+           class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Export</a>
+        <form method="post" action="{% url 'decks:deck_delete' deck.pk %}"
+              onsubmit="return confirm('Delete this deck?');" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-white text-sm">
+                Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Validation Status -->
+{% if not validation.valid %}
+<div class="bg-red-900 border border-red-700 rounded-lg p-4 mb-6">
+    <h3 class="font-semibold text-red-300 mb-2">Deck Validation Issues</h3>
+    <ul class="list-disc list-inside text-red-200 text-sm">
+        {% for error in validation.errors %}
+        <li>{{ error }}</li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<div class="bg-green-900 border border-green-700 rounded-lg p-4 mb-6">
+    <p class="text-green-300">Deck is valid and ready to play!</p>
+</div>
+{% endif %}
+
+<!-- Deck Stats -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold">{{ deck.main_deck_count }}</p>
+        <p class="text-gray-400 text-sm">Main Deck</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold">{{ deck.market_count }}</p>
+        <p class="text-gray-400 text-sm">Market</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold">{{ deck.power_count }}</p>
+        <p class="text-gray-400 text-sm">Power</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold">{{ deck.non_power_count }}</p>
+        <p class="text-gray-400 text-sm">Non-Power</p>
+    </div>
+</div>
+
+<!-- Main Deck by Type -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Main Deck -->
+    <div>
+        <h2 class="text-lg font-semibold mb-4">Main Deck</h2>
+        {% for card_type, cards in cards_by_type.items %}
+        <div class="mb-4">
+            <h3 class="text-sm font-medium text-gray-400 mb-2">{{ card_type }} ({{ cards|length }})</h3>
+            <div class="space-y-1">
+                {% for dc in cards %}
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-gray-400 w-6">{{ dc.quantity }}x</span>
+                    <span class="text-white">{{ dc.card.name }}</span>
+                    <span class="text-gray-500 text-xs">{{ dc.card.set_card_id }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500">No cards in main deck</p>
+        {% endfor %}
+    </div>
+
+    <!-- Market -->
+    <div>
+        <h2 class="text-lg font-semibold mb-4">Market ({{ deck.market_count }}/5)</h2>
+        {% if market_cards %}
+        <div class="space-y-1">
+            {% for dc in market_cards %}
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-gray-400 w-6">{{ dc.quantity }}x</span>
+                <span class="text-white">{{ dc.card.name }}</span>
+                <span class="text-gray-500 text-xs">{{ dc.card.set_card_id }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500">No cards in market</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if deck.description %}
+<div class="mt-6">
+    <h2 class="text-lg font-semibold mb-2">Notes</h2>
+    <p class="text-gray-400">{{ deck.description }}</p>
+</div>
+{% endif %}
+{% endblock %}

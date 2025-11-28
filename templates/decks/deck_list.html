@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Decks - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Your Decks</h1>
+    <a href="{% url 'decks:deck_create' %}"
+       class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white font-medium">
+        + New Deck
+    </a>
+</div>
+
+{% if decks %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {% for deck in decks %}
+    <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        <div class="p-4">
+            <div class="flex justify-between items-start mb-2">
+                <h3 class="text-lg font-semibold text-white">{{ deck.name }}</h3>
+                <span class="text-xs px-2 py-1 bg-gray-700 rounded text-gray-300">{{ deck.format }}</span>
+            </div>
+
+            <div class="text-sm text-gray-400 space-y-1">
+                <p>Main: {{ deck.main_deck_count }} cards</p>
+                <p>Market: {{ deck.market_count }} cards</p>
+            </div>
+
+            {% with validation=deck.validate_deck %}
+            {% if validation.valid %}
+            <span class="inline-block mt-2 text-xs px-2 py-1 bg-green-900 text-green-300 rounded">Valid</span>
+            {% else %}
+            <span class="inline-block mt-2 text-xs px-2 py-1 bg-red-900 text-red-300 rounded">
+                {{ validation.errors|length }} issue{{ validation.errors|length|pluralize }}
+            </span>
+            {% endif %}
+            {% endwith %}
+
+            {% if deck.description %}
+            <p class="mt-2 text-gray-500 text-sm truncate">{{ deck.description }}</p>
+            {% endif %}
+        </div>
+
+        <div class="border-t border-gray-700 px-4 py-3 bg-gray-750 flex gap-2">
+            <a href="{% url 'decks:deck_detail' deck.pk %}"
+               class="text-sm text-amber-500 hover:text-amber-400">View</a>
+            <a href="{% url 'decks:deck_edit' deck.pk %}"
+               class="text-sm text-amber-500 hover:text-amber-400">Edit</a>
+            <a href="{% url 'decks:deck_export_view' deck.pk %}"
+               class="text-sm text-amber-500 hover:text-amber-400">Export</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-12 text-gray-400">
+    <p class="mb-4">You don't have any decks yet.</p>
+    <a href="{% url 'decks:deck_create' %}"
+       class="inline-block px-6 py-3 bg-amber-600 hover:bg-amber-500 rounded text-white font-medium">
+        Create Your First Deck
+    </a>
+</div>
+{% endif %}
+{% endblock %}

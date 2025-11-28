@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Cards - Eternal Forge{% endblock %}
+
+{% block content %}
+<h1 class="text-2xl font-bold mb-6">Card Browser</h1>
+
+<!-- Filters -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-700">
+    <form id="card-filters" hx-get="{% url 'cards:card_list' %}" hx-target="#card-grid" hx-trigger="change, keyup delay:300ms from:#search-input">
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-4">
+            <!-- Search -->
+            <div class="col-span-2">
+                <input type="text" name="search" id="search-input" value="{{ search }}"
+                       placeholder="Search cards..."
+                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400">
+            </div>
+
+            <!-- Type Filter -->
+            <select name="type" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                <option value="">All Types</option>
+                {% for t in card_types %}
+                <option value="{{ t }}" {% if card_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+
+            <!-- Faction Filter -->
+            <select name="faction" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                <option value="">All Factions</option>
+                <option value="F" {% if faction == 'F' %}selected{% endif %}>Fire</option>
+                <option value="T" {% if faction == 'T' %}selected{% endif %}>Time</option>
+                <option value="J" {% if faction == 'J' %}selected{% endif %}>Justice</option>
+                <option value="P" {% if faction == 'P' %}selected{% endif %}>Primal</option>
+                <option value="S" {% if faction == 'S' %}selected{% endif %}>Shadow</option>
+            </select>
+
+            <!-- Cost Filter -->
+            <select name="cost" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                <option value="">All Costs</option>
+                {% for c in "0123456" %}
+                <option value="{{ c }}" {% if cost == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+                <option value="7+" {% if cost == '7+' %}selected{% endif %}>7+</option>
+            </select>
+
+            <!-- Rarity Filter -->
+            <select name="rarity" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                <option value="">All Rarities</option>
+                {% for r in rarities %}
+                <option value="{{ r }}" {% if rarity == r %}selected{% endif %}>{{ r }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+<!-- Results count -->
+<p class="text-gray-400 mb-4">{{ total_count }} cards found</p>
+
+<!-- Card Grid -->
+<div id="card-grid">
+    {% include "cards/partials/card_grid.html" %}
+</div>
+{% endblock %}
