@@ -10,16 +10,29 @@ from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib import messages
 from cards.models import Card
 from .models import Deck, DeckCard
+from .image_generator import generate_deck_image
 
 
 def deck_list(request):
     """
     List all decks with summary info.
     """
+    from django.db.models import Q
+
     decks = Deck.objects.all().prefetch_related('cards__card')
+
+    # Search by deck name or card name
+    search = request.GET.get('search', '').strip()
+    if search:
+        # Find decks matching name OR containing a card with that name
+        decks = decks.filter(
+            Q(name__icontains=search) |
+            Q(cards__card__name__icontains=search)
+        ).distinct()
 
     context = {
         'decks': decks,
+        'search': search,
     }
     return render(request, 'decks/deck_list.html', context)
 
@@ -208,3 +221,74 @@ def deck_delete(request, pk):
     deck.delete()
     messages.success(request, f'Deck "{name}" deleted.')
     return redirect('decks:deck_list')
+
+
+def deck_image(request, pk):
+    """
+    Generate and return a PNG image of the deck.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Generate the image
+    image_data = generate_deck_image(deck)
+
+    response = HttpResponse(image_data.getvalue(), content_type='image/png')
+    response['Content-Disposition'] = f'inline; filename="{deck.name}_deck.png"'
+    return response
+
+
+def deck_collection_check(request, pk):
+    """
+    Compare deck cards against user's collection to show missing cards.
+    """
+    from collection.models import CollectionEntry
+
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Get all deck cards
+    deck_cards = list(deck.cards.select_related('card', 'card__card_set'))
+
+    # Build collection lookup
+    collection = {}
+    for entry in CollectionEntry.objects.select_related('card'):
+        collection[entry.card_id] = entry.total_quantity
+
+    # Analyze each card
+    card_status = []
+    total_missing = 0
+    total_needed = 0
+
+    for dc in deck_cards:
+        owned = collection.get(dc.card_id, 0)
+        needed = dc.quantity
+        missing = max(0, needed - owned)
+        total_needed += needed
+        total_missing += missing
+
+        card_status.append({
+            'card': dc.card,
+            'needed': needed,
+            'owned': owned,
+            'missing': missing,
+            'is_market': dc.is_market,
+            'complete': missing == 0,
+        })
+
+    # Sort: missing cards first, then by name
+    card_status.sort(key=lambda x: (-x['missing'], x['card'].name))
+
+    # Summary stats
+    complete_cards = sum(1 for c in card_status if c['complete'])
+    missing_cards = [c for c in card_status if not c['complete']]
+
+    context = {
+        'deck': deck,
+        'card_status': card_status,
+        'missing_cards': missing_cards,
+        'total_needed': total_needed,
+        'total_missing': total_missing,
+        'complete_cards': complete_cards,
+        'total_card_types': len(card_status),
+        'deck_complete': total_missing == 0,
+    }
+    return render(request, 'decks/deck_collection_check.html', context)

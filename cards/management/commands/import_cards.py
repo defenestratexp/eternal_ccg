@@ -62,9 +62,9 @@ class Command(BaseCommand):
         cards_skipped = 0
 
         # Process each card
-        for card_data in cards_data:
+        for idx, card_data in enumerate(cards_data):
             try:
-                result = self._import_card(card_data)
+                result = self._import_card(card_data, index=idx)
                 if result == 'created':
                     cards_created += 1
                 elif result == 'updated':
@@ -92,7 +92,7 @@ class Command(BaseCommand):
             f"\n  Cards skipped: {cards_skipped}"
         ))
 
-    def _import_card(self, data):
+    def _import_card(self, data, index=0):
         """
         Import a single card from JSON data.
 
@@ -100,15 +100,22 @@ class Command(BaseCommand):
         """
         # Get or create the set
         set_number = data.get('SetNumber', 0)
+        set_name = data.get('SetName', '')
         card_set, set_created = CardSet.objects.get_or_create(
             number=set_number,
-            defaults={'name': ''}  # We don't have set names in the JSON
+            defaults={'name': set_name}
         )
+        # Update set name if we have it and set was missing it
+        if set_name and not card_set.name:
+            card_set.name = set_name
+            card_set.save()
 
         # Extract card data with defaults
+        # Use EternalID if present, otherwise generate from index
         eternal_id = data.get('EternalID')
         if eternal_id is None:
-            raise ValueError("Missing EternalID")
+            # Generate a unique ID based on set and index
+            eternal_id = set_number * 10000 + index
 
         # Map JSON fields to model fields
         card_data = {

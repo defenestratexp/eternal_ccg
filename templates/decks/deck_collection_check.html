@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Collection Check: {{ deck.name }} - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-start mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">Collection Check: {{ deck.name }}</h1>
+        <p class="text-gray-400">{{ deck.format }} &bull; {{ total_card_types }} unique cards</p>
+    </div>
+    <a href="{% url 'decks:deck_detail' deck.pk %}"
+       class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Deck</a>
+</div>
+
+<!-- Summary -->
+{% if deck_complete %}
+<div class="bg-green-900 border border-green-700 rounded-lg p-4 mb-6">
+    <h3 class="font-semibold text-green-300 mb-1">You can build this deck!</h3>
+    <p class="text-green-200 text-sm">You have all {{ total_needed }} cards needed for this deck.</p>
+</div>
+{% else %}
+<div class="bg-amber-900 border border-amber-700 rounded-lg p-4 mb-6">
+    <h3 class="font-semibold text-amber-300 mb-1">Missing Cards</h3>
+    <p class="text-amber-200 text-sm">
+        You need {{ total_missing }} more card{{ total_missing|pluralize }} to complete this deck.
+        ({{ complete_cards }}/{{ total_card_types }} card types complete)
+    </p>
+</div>
+{% endif %}
+
+<!-- Stats Grid -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold">{{ total_needed }}</p>
+        <p class="text-gray-400 text-sm">Deck Requires</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold {% if total_missing > 0 %}text-red-400{% else %}text-green-400{% endif %}">{{ total_missing }}</p>
+        <p class="text-gray-400 text-sm">You Still Need</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold text-green-400">{{ complete_cards }}</p>
+        <p class="text-gray-400 text-sm">Cards You Have</p>
+    </div>
+    <div class="bg-gray-800 rounded p-3 text-center">
+        <p class="text-2xl font-bold">{{ total_card_types }}</p>
+        <p class="text-gray-400 text-sm">Unique in Deck</p>
+    </div>
+</div>
+
+<!-- Card hover preview container -->
+<div id="card-preview" class="fixed hidden pointer-events-none z-50">
+    <img id="card-preview-img" src="" alt="" class="w-48 rounded-lg shadow-2xl border border-gray-600">
+</div>
+
+<!-- Missing Cards Section -->
+{% if missing_cards %}
+<div class="mb-8">
+    <h2 class="text-lg font-semibold mb-4 text-red-400">Missing Cards ({{ missing_cards|length }})</h2>
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="text-left px-4 py-2">Card</th>
+                    <th class="text-center px-4 py-2">Deck Needs</th>
+                    <th class="text-center px-4 py-2">You Own</th>
+                    <th class="text-center px-4 py-2">Still Need</th>
+                    <th class="text-left px-4 py-2">Location</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in missing_cards %}
+                <tr class="border-t border-gray-700 hover:bg-gray-750">
+                    <td class="px-4 py-2">
+                        <a href="{% url 'cards:card_detail' item.card.pk %}?from_deck={{ deck.pk }}"
+                           class="text-white hover:text-amber-400 card-hover"
+                           data-image="{{ item.card.image_url }}">{{ item.card.name }}</a>
+                        <span class="text-gray-500 text-xs ml-2">{{ item.card.set_card_id }}</span>
+                    </td>
+                    <td class="px-4 py-2 text-center">{{ item.needed }}</td>
+                    <td class="px-4 py-2 text-center {% if item.owned == 0 %}text-red-400{% else %}text-yellow-400{% endif %}">{{ item.owned }}</td>
+                    <td class="px-4 py-2 text-center text-red-400 font-bold">{{ item.missing }}</td>
+                    <td class="px-4 py-2 text-gray-400">{% if item.is_market %}Market{% else %}Main{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Complete Cards Section -->
+<div>
+    <h2 class="text-lg font-semibold mb-4 text-green-400">Complete Cards ({{ complete_cards }})</h2>
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="text-left px-4 py-2">Card</th>
+                    <th class="text-center px-4 py-2">Deck Needs</th>
+                    <th class="text-center px-4 py-2">You Own</th>
+                    <th class="text-left px-4 py-2">Location</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in card_status %}
+                {% if item.complete %}
+                <tr class="border-t border-gray-700 hover:bg-gray-750">
+                    <td class="px-4 py-2">
+                        <a href="{% url 'cards:card_detail' item.card.pk %}?from_deck={{ deck.pk }}"
+                           class="text-white hover:text-amber-400 card-hover"
+                           data-image="{{ item.card.image_url }}">{{ item.card.name }}</a>
+                        <span class="text-gray-500 text-xs ml-2">{{ item.card.set_card_id }}</span>
+                    </td>
+                    <td class="px-4 py-2 text-center">{{ item.needed }}</td>
+                    <td class="px-4 py-2 text-center text-green-400">{{ item.owned }}</td>
+                    <td class="px-4 py-2 text-gray-400">{% if item.is_market %}Market{% else %}Main{% endif %}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const preview = document.getElementById('card-preview');
+    const previewImg = document.getElementById('card-preview-img');
+
+    document.querySelectorAll('.card-hover').forEach(el => {
+        el.addEventListener('mouseenter', function(e) {
+            const imageUrl = this.dataset.image;
+            if (imageUrl) {
+                previewImg.src = imageUrl;
+                preview.classList.remove('hidden');
+            }
+        });
+
+        el.addEventListener('mousemove', function(e) {
+            const x = e.clientX + 15;
+            const y = e.clientY + 15;
+            const maxX = window.innerWidth - 210;
+            const maxY = window.innerHeight - 300;
+            preview.style.left = Math.min(x, maxX) + 'px';
+            preview.style.top = Math.min(y, maxY) + 'px';
+        });
+
+        el.addEventListener('mouseleave', function() {
+            preview.classList.add('hidden');
+        });
+    });
+});
+</script>
+{% endblock %}

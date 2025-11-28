@@ -18,10 +18,14 @@ def card_list(request):
     """
     cards = Card.objects.filter(deck_buildable=True).select_related('card_set')
 
-    # Search by name
+    # Search by name, card text, or type
     search = request.GET.get('search', '').strip()
     if search:
-        cards = cards.filter(name__icontains=search)
+        cards = cards.filter(
+            Q(name__icontains=search) |
+            Q(card_text__icontains=search) |
+            Q(card_type__icontains=search)
+        )
 
     # Filter by card type
     card_type = request.GET.get('type', '')
@@ -108,9 +112,24 @@ def card_detail(request, pk):
     except CollectionEntry.DoesNotExist:
         owned_count = 0
 
+    # Check if coming from a deck
+    from decks.models import Deck
+    from_deck_id = request.GET.get('from_deck')
+    from_deck = None
+    if from_deck_id:
+        try:
+            from_deck = Deck.objects.get(pk=from_deck_id)
+        except Deck.DoesNotExist:
+            pass
+
+    # Get all decks containing this card
+    decks_with_card = Deck.objects.filter(cards__card=card).distinct()
+
     context = {
         'card': card,
         'owned_count': owned_count,
+        'from_deck': from_deck,
+        'decks_with_card': decks_with_card,
     }
 
     # If HTMX request, return card popup partial
