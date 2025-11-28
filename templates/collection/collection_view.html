@@ -43,6 +43,11 @@
     </form>
 </div>
 
+<!-- Card hover preview container -->
+<div id="card-preview" class="fixed hidden pointer-events-none z-50">
+    <img id="card-preview-img" src="" alt="" class="w-48 rounded-lg shadow-2xl border border-gray-600">
+</div>
+
 <!-- Collection Table -->
 <div class="bg-gray-800 rounded overflow-hidden">
     <table class="w-full text-sm">
@@ -59,7 +64,9 @@
             {% for entry in entries %}
             <tr class="hover:bg-gray-750">
                 <td class="px-4 py-3">
-                    <span class="text-white">{{ entry.card.name }}</span>
+                    <a href="{% url 'cards:card_detail' entry.card.pk %}"
+                       class="text-white hover:text-amber-400 card-hover"
+                       data-image="{{ entry.card.image_url }}">{{ entry.card.name }}</a>
                     <span class="text-gray-500 text-xs ml-2">{{ entry.card.card_type }}</span>
                 </td>
                 <td class="px-4 py-3 text-gray-400">Set {{ entry.card.card_set.number }}</td>
@@ -79,4 +86,34 @@
         </tbody>
     </table>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const preview = document.getElementById('card-preview');
+    const previewImg = document.getElementById('card-preview-img');
+
+    document.querySelectorAll('.card-hover').forEach(el => {
+        el.addEventListener('mouseenter', function(e) {
+            const imageUrl = this.dataset.image;
+            if (imageUrl) {
+                previewImg.src = imageUrl;
+                preview.classList.remove('hidden');
+            }
+        });
+
+        el.addEventListener('mousemove', function(e) {
+            const x = e.clientX + 15;
+            const y = e.clientY + 15;
+            const maxX = window.innerWidth - 210;
+            const maxY = window.innerHeight - 300;
+            preview.style.left = Math.min(x, maxX) + 'px';
+            preview.style.top = Math.min(y, maxY) + 'px';
+        });
+
+        el.addEventListener('mouseleave', function() {
+            preview.classList.add('hidden');
+        });
+    });
+});
+</script>
 {% endblock %}

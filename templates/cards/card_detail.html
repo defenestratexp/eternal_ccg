@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}{{ card.name }} - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Back links -->
+    <div class="flex gap-4 mb-4">
+        <a href="{% url 'cards:card_list' %}" class="text-amber-500 hover:text-amber-400 text-sm">
+            &larr; Back to Cards
+        </a>
+        {% if from_deck %}
+        <a href="{% url 'decks:deck_detail' from_deck.pk %}" class="text-amber-500 hover:text-amber-400 text-sm">
+            &larr; Back to {{ from_deck.name }}
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-8">
+        <!-- Card Image -->
+        <div class="md:w-1/2">
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" alt="{{ card.name }}" class="w-full rounded-lg shadow-lg">
+            {% else %}
+            <div class="aspect-[3/4] bg-gray-700 rounded-lg flex items-center justify-center">
+                <span class="text-gray-400">No image available</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Card Info -->
+        <div class="md:w-1/2">
+            <h1 class="text-3xl font-bold text-white mb-4">{{ card.name }}</h1>
+
+            <div class="bg-gray-800 rounded-lg p-4 space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Type:</span>
+                    <span class="text-white">{{ card.card_type }}</span>
+                </div>
+
+                {% if card.unit_types %}
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Subtypes:</span>
+                    <span class="text-white">{{ card.unit_types|join:", " }}</span>
+                </div>
+                {% endif %}
+
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Cost:</span>
+                    <span class="text-white">{{ card.cost }} {{ card.influence }}</span>
+                </div>
+
+                {% if card.attack or card.health %}
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Stats:</span>
+                    <span class="text-white">{{ card.attack }}/{{ card.health }}</span>
+                </div>
+                {% endif %}
+
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Rarity:</span>
+                    <span class="{% if card.rarity == 'Legendary' %}text-amber-400{% elif card.rarity == 'Rare' %}text-blue-400{% elif card.rarity == 'Uncommon' %}text-green-400{% else %}text-white{% endif %}">
+                        {{ card.rarity }}
+                    </span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-400">Set:</span>
+                    <span class="text-white">{{ card.card_set.name }} ({{ card.set_card_id }})</span>
+                </div>
+
+                <div class="flex justify-between">
+                    <span class="text-gray-400">You Own:</span>
+                    <span class="{% if owned_count >= 4 %}text-green-400{% elif owned_count > 0 %}text-yellow-400{% else %}text-red-400{% endif %}">
+                        {{ owned_count }}
+                    </span>
+                </div>
+            </div>
+
+            {% if card.card_text %}
+            <div class="mt-4 p-4 bg-gray-700 rounded-lg">
+                <h3 class="text-sm font-medium text-gray-400 mb-2">Card Text</h3>
+                <p class="text-gray-200">{{ card.card_text|linebreaks }}</p>
+            </div>
+            {% endif %}
+
+            {% if card.details_url %}
+            <a href="{{ card.details_url }}" target="_blank"
+               class="mt-4 inline-block px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white text-sm">
+                View on EternalWarcry &rarr;
+            </a>
+            {% endif %}
+
+            <!-- Decks containing this card -->
+            {% if decks_with_card %}
+            <div class="mt-6 p-4 bg-gray-800 rounded-lg">
+                <h3 class="text-sm font-medium text-gray-400 mb-3">In Your Decks ({{ decks_with_card|length }})</h3>
+                <div class="space-y-2">
+                    {% for deck in decks_with_card %}
+                    <a href="{% url 'decks:deck_detail' deck.pk %}"
+                       class="block text-amber-500 hover:text-amber-400 text-sm">
+                        {{ deck.name }} <span class="text-gray-500">({{ deck.format }})</span>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="mt-6 p-4 bg-gray-800 rounded-lg">
+                <p class="text-gray-500 text-sm">Not in any of your decks</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

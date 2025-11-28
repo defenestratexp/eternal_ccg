@@ -11,6 +11,28 @@
     </a>
 </div>
 
+<!-- Search -->
+<div class="bg-gray-800 rounded p-4 mb-6">
+    <form method="get" class="flex gap-4">
+        <input type="text" name="search" value="{{ search }}"
+               placeholder="Search by deck name or card name..."
+               class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+        <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white">
+            Search
+        </button>
+        {% if search %}
+        <a href="{% url 'decks:deck_list' %}" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white">
+            Clear
+        </a>
+        {% endif %}
+    </form>
+    {% if search %}
+    <p class="text-gray-400 text-sm mt-2">
+        Showing decks matching "{{ search }}" ({{ decks|length }} result{{ decks|length|pluralize }})
+    </p>
+    {% endif %}
+</div>
+
 {% if decks %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {% for deck in decks %}

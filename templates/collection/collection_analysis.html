@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Collection Analysis - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-start mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">Collection Analysis</h1>
+        <p class="text-gray-400">See what's in the game vs what you own</p>
+    </div>
+    <a href="{% url 'collection:collection_view' %}"
+       class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Collection</a>
+</div>
+
+<!-- Overall Stats -->
+<div class="grid grid-cols-4 gap-4 mb-8">
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <p class="text-3xl font-bold">{{ total_cards }}</p>
+        <p class="text-gray-400 text-sm">Cards in Game</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <p class="text-3xl font-bold text-green-400">{{ cards_owned }}</p>
+        <p class="text-gray-400 text-sm">You Own</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <p class="text-3xl font-bold text-red-400">{{ cards_missing }}</p>
+        <p class="text-gray-400 text-sm">Missing</p>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <p class="text-3xl font-bold text-amber-400">{{ coverage_percent }}%</p>
+        <p class="text-gray-400 text-sm">Coverage</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- Missing by Rarity -->
+    <div>
+        <h2 class="text-xl font-semibold mb-4">Missing by Rarity</h2>
+        <div class="bg-gray-800 rounded-lg overflow-hidden">
+            {% for rarity in rarity_stats %}
+            <details class="border-b border-gray-700 last:border-b-0">
+                <summary class="px-4 py-3 cursor-pointer hover:bg-gray-750 flex justify-between items-center">
+                    <span class="font-medium {% if rarity.name == 'Legendary' %}text-amber-400{% elif rarity.name == 'Rare' %}text-blue-400{% elif rarity.name == 'Uncommon' %}text-green-400{% elif rarity.name == 'Promo' %}text-purple-400{% else %}text-gray-300{% endif %}">
+                        {{ rarity.name }}
+                    </span>
+                    <span class="text-gray-400">{{ rarity.count }} cards</span>
+                </summary>
+                <div class="px-4 py-2 bg-gray-900 max-h-64 overflow-y-auto">
+                    <div class="grid grid-cols-1 gap-1 text-sm">
+                        {% for card in rarity.cards %}
+                        <a href="{% url 'cards:card_detail' card.pk %}"
+                           class="text-gray-300 hover:text-amber-400">
+                            {{ card.name }}
+                            <span class="text-gray-500 text-xs">{{ card.set_card_id }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+            {% empty %}
+            <p class="px-4 py-3 text-green-400">You have all cards!</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Missing by Set (top 15) -->
+    <div>
+        <h2 class="text-xl font-semibold mb-4">Missing by Set</h2>
+        <div class="bg-gray-800 rounded-lg overflow-hidden max-h-96 overflow-y-auto">
+            {% for set in set_stats|slice:":15" %}
+            <details class="border-b border-gray-700 last:border-b-0">
+                <summary class="px-4 py-3 cursor-pointer hover:bg-gray-750 flex justify-between items-center">
+                    <span class="font-medium">{{ set.name }}</span>
+                    <span class="text-gray-400">{{ set.count }} missing</span>
+                </summary>
+                <div class="px-4 py-2 bg-gray-900 max-h-48 overflow-y-auto">
+                    <div class="grid grid-cols-1 gap-1 text-sm">
+                        {% for card in set.cards %}
+                        <a href="{% url 'cards:card_detail' card.pk %}"
+                           class="text-gray-300 hover:text-amber-400">
+                            {{ card.name }}
+                            <span class="text-gray-500 text-xs">({{ card.rarity }})</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Set Completeness -->
+<div class="mt-8">
+    <h2 class="text-xl font-semibold mb-4">Set Completeness</h2>
+    <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="text-left px-4 py-2">Set</th>
+                    <th class="text-center px-4 py-2">You Own</th>
+                    <th class="text-center px-4 py-2">In Game</th>
+                    <th class="text-center px-4 py-2">Missing</th>
+                    <th class="text-left px-4 py-2 w-48">Progress</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for set in set_completeness %}
+                <tr class="border-t border-gray-700 hover:bg-gray-750">
+                    <td class="px-4 py-2 font-medium">{{ set.name }}</td>
+                    <td class="px-4 py-2 text-center text-green-400">{{ set.owned }}</td>
+                    <td class="px-4 py-2 text-center">{{ set.total }}</td>
+                    <td class="px-4 py-2 text-center {% if set.missing > 0 %}text-red-400{% else %}text-green-400{% endif %}">
+                        {{ set.missing }}
+                    </td>
+                    <td class="px-4 py-2">
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 bg-gray-700 rounded-full h-2">
+                                <div class="h-2 rounded-full {% if set.percent == 100 %}bg-green-500{% elif set.percent >= 75 %}bg-amber-500{% else %}bg-red-500{% endif %}"
+                                     style="width: {{ set.percent }}%"></div>
+                            </div>
+                            <span class="text-xs text-gray-400 w-12 text-right">{{ set.percent }}%</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

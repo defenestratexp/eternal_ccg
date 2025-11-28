@@ -79,6 +79,84 @@ def collection_upload(request):
     return render(request, 'collection/collection_upload.html')
 
 
+def collection_analysis(request):
+    """
+    Analyze collection completeness - what's missing by rarity and set.
+    """
+    from collections import defaultdict
+
+    # Get all owned card IDs
+    owned_card_ids = set(CollectionEntry.objects.values_list('card_id', flat=True))
+
+    # All cards and missing cards
+    all_cards = Card.objects.select_related('card_set').all()
+    total_cards = all_cards.count()
+    cards_owned = len(owned_card_ids)
+
+    # Separate missing cards
+    missing_cards = [c for c in all_cards if c.pk not in owned_card_ids]
+
+    # Group by rarity
+    by_rarity = defaultdict(list)
+    for card in missing_cards:
+        rarity = card.rarity or 'None'
+        by_rarity[rarity].append(card)
+
+    # Sort rarities in logical order
+    rarity_order = ['Legendary', 'Rare', 'Uncommon', 'Common', 'Promo', 'None']
+    rarity_stats = []
+    for rarity in rarity_order:
+        if rarity in by_rarity:
+            rarity_stats.append({
+                'name': rarity,
+                'count': len(by_rarity[rarity]),
+                'cards': sorted(by_rarity[rarity], key=lambda c: c.name),
+            })
+
+    # Group by set
+    by_set = defaultdict(list)
+    for card in missing_cards:
+        set_name = card.card_set.name if card.card_set else 'Unknown'
+        by_set[set_name].append(card)
+
+    # Sort sets by count descending
+    set_stats = []
+    for set_name, cards in sorted(by_set.items(), key=lambda x: -len(x[1])):
+        set_stats.append({
+            'name': set_name,
+            'count': len(cards),
+            'cards': sorted(cards, key=lambda c: c.name),
+        })
+
+    # Collection completeness by set (for all sets)
+    all_sets = CardSet.objects.all().order_by('number')
+    set_completeness = []
+    for card_set in all_sets:
+        set_cards = Card.objects.filter(card_set=card_set)
+        set_total = set_cards.count()
+        if set_total == 0:
+            continue
+        set_owned = set_cards.filter(pk__in=owned_card_ids).count()
+        set_completeness.append({
+            'name': card_set.name,
+            'owned': set_owned,
+            'total': set_total,
+            'missing': set_total - set_owned,
+            'percent': round(set_owned / set_total * 100, 1) if set_total else 0,
+        })
+
+    context = {
+        'total_cards': total_cards,
+        'cards_owned': cards_owned,
+        'cards_missing': len(missing_cards),
+        'coverage_percent': round(cards_owned / total_cards * 100, 1) if total_cards else 0,
+        'rarity_stats': rarity_stats,
+        'set_stats': set_stats,
+        'set_completeness': set_completeness,
+    }
+    return render(request, 'collection/collection_analysis.html', context)
+
+
 def import_collection_content(content):
     """
     Parse collection export content and update database.
