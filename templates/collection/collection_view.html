@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Collection - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-2xl font-bold">Your Collection</h1>
+    <a href="{% url 'collection:collection_upload' %}"
+       class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white text-sm">
+        Upload Collection
+    </a>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-3 gap-4 mb-6">
+    <div class="bg-gray-800 rounded p-4 text-center">
+        <p class="text-2xl font-bold">{{ total_cards }}</p>
+        <p class="text-gray-400 text-sm">Total Cards</p>
+    </div>
+    <div class="bg-gray-800 rounded p-4 text-center">
+        <p class="text-2xl font-bold">{{ total_unique }}</p>
+        <p class="text-gray-400 text-sm">Unique Cards</p>
+    </div>
+    <div class="bg-gray-800 rounded p-4 text-center">
+        <p class="text-2xl font-bold">{{ total_entries }}</p>
+        <p class="text-gray-400 text-sm">Collection Entries</p>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="bg-gray-800 rounded p-4 mb-6">
+    <form method="get" class="flex gap-4">
+        <input type="text" name="search" value="{{ search }}" placeholder="Search cards..."
+               class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+        <select name="owned" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+            <option value="">All Cards</option>
+            <option value="playset" {% if owned_filter == 'playset' %}selected{% endif %}>Full Playsets (4+)</option>
+            <option value="incomplete" {% if owned_filter == 'incomplete' %}selected{% endif %}>Incomplete (&lt;4)</option>
+        </select>
+        <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white">
+            Filter
+        </button>
+    </form>
+</div>
+
+<!-- Collection Table -->
+<div class="bg-gray-800 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-700">
+            <tr>
+                <th class="px-4 py-3 text-left">Card</th>
+                <th class="px-4 py-3 text-left">Set</th>
+                <th class="px-4 py-3 text-center">Regular</th>
+                <th class="px-4 py-3 text-center">Premium</th>
+                <th class="px-4 py-3 text-center">Total</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+            {% for entry in entries %}
+            <tr class="hover:bg-gray-750">
+                <td class="px-4 py-3">
+                    <span class="text-white">{{ entry.card.name }}</span>
+                    <span class="text-gray-500 text-xs ml-2">{{ entry.card.card_type }}</span>
+                </td>
+                <td class="px-4 py-3 text-gray-400">Set {{ entry.card.card_set.number }}</td>
+                <td class="px-4 py-3 text-center">{{ entry.quantity }}</td>
+                <td class="px-4 py-3 text-center text-amber-500">{{ entry.premium_quantity }}</td>
+                <td class="px-4 py-3 text-center font-medium {% if entry.total_quantity >= 4 %}text-green-400{% else %}text-yellow-400{% endif %}">
+                    {{ entry.total_quantity }}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="px-4 py-8 text-center text-gray-400">
+                    No cards in collection. <a href="{% url 'collection:collection_upload' %}" class="text-amber-500">Upload your collection</a> to get started.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

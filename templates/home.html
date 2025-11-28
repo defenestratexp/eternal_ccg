@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Eternal Forge - Home{% endblock %}
+
+{% block content %}
+<div class="text-center mb-12">
+    <h1 class="text-4xl font-bold text-amber-500 mb-4">Eternal Forge</h1>
+    <p class="text-gray-400 text-lg">Deck Builder & Collection Manager for Eternal Card Game</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <h3 class="text-gray-400 text-sm uppercase mb-2">Card Database</h3>
+        <p class="text-3xl font-bold text-white">{{ total_cards }}</p>
+        <p class="text-gray-500 text-sm">cards across {{ total_sets }} sets</p>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <h3 class="text-gray-400 text-sm uppercase mb-2">Your Collection</h3>
+        <p class="text-3xl font-bold text-white">{{ total_owned }}</p>
+        <p class="text-gray-500 text-sm">cards ({{ collection_size }} unique)</p>
+    </div>
+
+    <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+        <h3 class="text-gray-400 text-sm uppercase mb-2">Your Decks</h3>
+        <p class="text-3xl font-bold text-white">{{ deck_count }}</p>
+        <p class="text-gray-500 text-sm">saved decks</p>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <a href="{% url 'cards:card_list' %}"
+       class="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition">
+        <h3 class="text-xl font-semibold text-white mb-2">Browse Cards</h3>
+        <p class="text-gray-400">Search and filter all cards in the database</p>
+    </a>
+
+    <a href="{% url 'decks:deck_create' %}"
+       class="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition">
+        <h3 class="text-xl font-semibold text-white mb-2">Create Deck</h3>
+        <p class="text-gray-400">Build a new deck with validation</p>
+    </a>
+
+    <a href="{% url 'collection:collection_upload' %}"
+       class="bg-gray-800 hover:bg-gray-700 rounded-lg p-6 border border-gray-700 transition">
+        <h3 class="text-xl font-semibold text-white mb-2">Import Collection</h3>
+        <p class="text-gray-400">Upload your collection from Eternal</p>
+    </a>
+</div>
+{% endblock %}

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Eternal Forge{% endblock %}</title>
+
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
+    <style>
+        /* Card hover effect */
+        .card-hover:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+        /* Faction colors */
+        .faction-fire { color: #dc2626; }
+        .faction-time { color: #ca8a04; }
+        .faction-justice { color: #16a34a; }
+        .faction-primal { color: #2563eb; }
+        .faction-shadow { color: #7c3aed; }
+        /* Card rarity colors */
+        .rarity-common { border-color: #9ca3af; }
+        .rarity-uncommon { border-color: #22c55e; }
+        .rarity-rare { border-color: #3b82f6; }
+        .rarity-legendary { border-color: #f59e0b; }
+        .rarity-promo { border-color: #ec4899; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-gray-800 border-b border-gray-700">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="{% url 'home' %}" class="text-xl font-bold text-amber-500">
+                        Eternal Forge
+                    </a>
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="{% url 'cards:card_list' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white">
+                            Cards
+                        </a>
+                        <a href="{% url 'collection:collection_view' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white">
+                            Collection
+                        </a>
+                        <a href="{% url 'decks:deck_list' %}"
+                           class="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-700 hover:text-white">
+                            Decks
+                        </a>
+                    </div>
+                </div>
+                <div>
+                    <a href="/admin/" class="text-gray-400 hover:text-white text-sm">Admin</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        {% if messages %}
+        <div class="mb-4">
+            {% for message in messages %}
+            <div class="p-4 rounded-md {% if message.tags == 'error' %}bg-red-900{% else %}bg-green-900{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 border-t border-gray-700 mt-8">
+        <div class="max-w-7xl mx-auto px-4 py-4 text-center text-gray-400 text-sm">
+            Eternal Forge - Deck Builder for Eternal Card Game
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
