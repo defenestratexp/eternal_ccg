@@ -401,6 +401,7 @@ def deck_power_calculator(request, pk):
         'undepleted_count': analyzer.get_undepleted_count(),
         'depleted_count': analyzer.get_depleted_count(),
         'conditional_count': analyzer.get_conditional_count(),
+        'colorless_count': analyzer.get_colorless_count(),
         'power_table': power_table,
         'influence_tables': influence_tables,
         'key_cards': key_cards,

@@ -108,6 +108,7 @@ class PowerSource:
     influence_provided: Dict[str, int]  # {'F': 1, 'T': 1} etc.
     is_depleted: bool
     is_conditional: bool
+    is_colorless: bool = False  # True if provides power but no faction influence
     power_provided: int = 1  # Most power cards provide 1 power
 
 
@@ -175,10 +176,7 @@ class DeckPowerAnalyzer:
                 continue
 
             influence_provided = self._parse_influence(card.influence)
-
-            # Skip if no influence provided
-            if not influence_provided:
-                continue
+            is_colorless = len(influence_provided) == 0
 
             power_source = PowerSource(
                 card_name=card.name,
@@ -187,6 +185,7 @@ class DeckPowerAnalyzer:
                 influence_provided=influence_provided,
                 is_depleted=self._is_depleted(card.card_text),
                 is_conditional=self._is_conditional(card.card_text),
+                is_colorless=is_colorless,
             )
             self.power_sources.append(power_source)
 
@@ -195,24 +194,31 @@ class DeckPowerAnalyzer:
         return sum(ps.quantity for ps in self.power_sources)
 
     def get_undepleted_count(self) -> int:
-        """Get count of power sources that enter undepleted."""
+        """Get count of power sources that enter undepleted (excludes colorless)."""
         return sum(
             ps.quantity for ps in self.power_sources
-            if not ps.is_depleted and not ps.is_conditional
+            if not ps.is_depleted and not ps.is_conditional and not ps.is_colorless
         )
 
     def get_depleted_count(self) -> int:
-        """Get count of power sources that always enter depleted."""
+        """Get count of power sources that always enter depleted (excludes colorless)."""
         return sum(
             ps.quantity for ps in self.power_sources
-            if ps.is_depleted
+            if ps.is_depleted and not ps.is_colorless
         )
 
     def get_conditional_count(self) -> int:
         """Get count of power sources with conditional depleted."""
         return sum(
             ps.quantity for ps in self.power_sources
-            if ps.is_conditional
+            if ps.is_conditional and not ps.is_colorless
+        )
+
+    def get_colorless_count(self) -> int:
+        """Get count of colorless/flexible power sources."""
+        return sum(
+            ps.quantity for ps in self.power_sources
+            if ps.is_colorless
         )
 
     def get_influence_sources(self) -> Dict[str, int]:
@@ -234,16 +240,19 @@ class DeckPowerAnalyzer:
         """
         Categorize power sources.
 
-        Returns dict with keys: 'undepleted', 'depleted', 'conditional'
+        Returns dict with keys: 'undepleted', 'depleted', 'conditional', 'colorless'
         """
         categories = {
             'undepleted': [],
             'depleted': [],
             'conditional': [],
+            'colorless': [],
         }
 
         for ps in self.power_sources:
-            if ps.is_conditional:
+            if ps.is_colorless:
+                categories['colorless'].append(ps)
+            elif ps.is_conditional:
                 categories['conditional'].append(ps)
             elif ps.is_depleted:
                 categories['depleted'].append(ps)
