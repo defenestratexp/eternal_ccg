@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Version History - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Version History</p>
+    </div>
+    <a href="{% url 'decks:deck_detail' deck.pk %}"
+       class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Deck</a>
+</div>
+
+<!-- Create New Version -->
+<div class="bg-gray-800 rounded p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Save Current State</h2>
+    <form method="post" action="{% url 'decks:deck_create_version' deck.pk %}" class="flex gap-4">
+        {% csrf_token %}
+        <input type="text" name="notes" placeholder="Version notes (optional)..."
+               class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+        <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white">
+            Create Snapshot
+        </button>
+    </form>
+    <p class="text-gray-500 text-sm mt-2">
+        Current working version: v{{ deck.current_version_number }}
+    </p>
+</div>
+
+<!-- Version List -->
+{% if versions %}
+<div class="bg-gray-800 rounded overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-gray-700">
+            <tr>
+                <th class="px-4 py-3 text-left">Version</th>
+                <th class="px-4 py-3 text-left">Created</th>
+                <th class="px-4 py-3 text-left">Notes</th>
+                <th class="px-4 py-3 text-center">Main Deck</th>
+                <th class="px-4 py-3 text-center">Market</th>
+                <th class="px-4 py-3 text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+            {% for version in versions %}
+            <tr class="hover:bg-gray-750">
+                <td class="px-4 py-3 font-medium">v{{ version.version_number }}</td>
+                <td class="px-4 py-3 text-gray-400">{{ version.created_at|date:"M d, Y H:i" }}</td>
+                <td class="px-4 py-3 text-gray-400">{{ version.notes|default:"-" }}</td>
+                <td class="px-4 py-3 text-center">{{ version.main_deck_count }}</td>
+                <td class="px-4 py-3 text-center">{{ version.market_count }}</td>
+                <td class="px-4 py-3 text-right">
+                    <form method="post" action="{% url 'decks:deck_restore_version' deck.pk version.version_number %}"
+                          onsubmit="return confirm('Restore to version {{ version.version_number }}? Current state will be saved as a new version.');"
+                          class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="text-amber-500 hover:text-amber-400">
+                            Restore
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="text-center py-12 text-gray-400">
+    <p>No saved versions yet. Create a snapshot above to start tracking versions.</p>
+</div>
+{% endif %}
+{% endblock %}

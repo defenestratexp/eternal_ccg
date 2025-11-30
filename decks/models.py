@@ -200,6 +200,159 @@ class Deck(models.Model):
 
         return "\n".join(lines)
 
+    def create_version_snapshot(self, notes=""):
+        """
+        Creates a snapshot of the current deck state.
+
+        Returns the created DeckVersion instance.
+        """
+        # Import here to avoid circular import
+        from .models import DeckVersion, DeckVersionCard
+
+        # Determine next version number
+        last_version = self.versions.order_by('-version_number').first()
+        next_version = (last_version.version_number + 1) if last_version else 1
+
+        # Create version record
+        version = DeckVersion.objects.create(
+            deck=self,
+            version_number=next_version,
+            notes=notes
+        )
+
+        # Copy all current cards to version
+        for dc in self.cards.all():
+            DeckVersionCard.objects.create(
+                deck_version=version,
+                card=dc.card,
+                quantity=dc.quantity,
+                is_market=dc.is_market
+            )
+
+        return version
+
+    def restore_version(self, version_number):
+        """
+        Restores the deck to a previous version.
+
+        Creates a snapshot of current state first, then replaces cards.
+        Returns the restored DeckVersion.
+        """
+        # Get the version to restore
+        version = self.versions.get(version_number=version_number)
+
+        # Create snapshot of current state before restoring
+        self.create_version_snapshot(notes=f"Auto-snapshot before restoring to v{version_number}")
+
+        # Clear current cards
+        self.cards.all().delete()
+
+        # Copy cards from version
+        for vc in version.cards.all():
+            DeckCard.objects.create(
+                deck=self,
+                card=vc.card,
+                quantity=vc.quantity,
+                is_market=vc.is_market
+            )
+
+        return version
+
+    @property
+    def current_version_number(self):
+        """Returns the next version number (current working state)."""
+        last_version = self.versions.order_by('-version_number').first()
+        return (last_version.version_number + 1) if last_version else 1
+
+
+class DeckVersion(models.Model):
+    """
+    Represents a snapshot of a deck at a point in time.
+
+    Used for version history and rollback functionality.
+    """
+
+    # The deck this version belongs to
+    deck = models.ForeignKey(
+        Deck,
+        on_delete=models.CASCADE,
+        related_name='versions',
+        help_text="The deck this version belongs to"
+    )
+
+    # Version number (1, 2, 3...)
+    version_number = models.PositiveIntegerField(
+        help_text="Version number"
+    )
+
+    # When this version was created
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    # Optional notes about this version
+    notes = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Notes about what changed in this version"
+    )
+
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = ['deck', 'version_number']
+
+    def __str__(self):
+        return f"{self.deck.name} v{self.version_number}"
+
+    @property
+    def main_deck_count(self):
+        """Total number of cards in main deck for this version."""
+        return sum(vc.quantity for vc in self.cards.filter(is_market=False))
+
+    @property
+    def market_count(self):
+        """Total number of cards in market for this version."""
+        return sum(vc.quantity for vc in self.cards.filter(is_market=True))
+
+
+class DeckVersionCard(models.Model):
+    """
+    Represents a card slot in a deck version snapshot.
+    """
+
+    # The version this card belongs to
+    deck_version = models.ForeignKey(
+        DeckVersion,
+        on_delete=models.CASCADE,
+        related_name='cards',
+        help_text="The deck version containing this card"
+    )
+
+    # The card
+    card = models.ForeignKey(
+        Card,
+        on_delete=models.CASCADE,
+        related_name='version_entries',
+        help_text="The card in this version"
+    )
+
+    # Number of copies
+    quantity = models.PositiveIntegerField(
+        default=1,
+        help_text="Number of copies in this slot"
+    )
+
+    # Is this card in the market?
+    is_market = models.BooleanField(
+        default=False,
+        help_text="True if this card is in the market"
+    )
+
+    class Meta:
+        ordering = ['is_market', 'card__cost', 'card__name']
+
+    def __str__(self):
+        location = "Market" if self.is_market else "Main"
+        return f"{self.quantity}x {self.card.name} [{location}]"
+
 
 class DeckCard(models.Model):
     """
