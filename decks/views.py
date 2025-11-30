@@ -13,6 +13,7 @@ from .models import Deck, DeckCard, DeckVersion, DeckVersionCard
 from .image_generator import generate_deck_image
 from .power_calculator import DeckPowerAnalyzer
 from .draw_simulator import DrawSimulator
+from .deck_analysis import DeckAnalyzer
 
 
 def deck_list(request):
@@ -473,3 +474,38 @@ def deck_draw_simulator(request, pk):
         'deck_remaining': len(simulator.remaining_deck),
     }
     return render(request, 'decks/deck_draw_simulator.html', context)
+
+
+def deck_analysis(request, pk):
+    """
+    Comprehensive deck analysis view - curve, types, influence requirements.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Run analysis
+    analyzer = DeckAnalyzer(deck)
+    curve = analyzer.analyze_curve()
+    types = analyzer.analyze_type_distribution()
+    influence = analyzer.analyze_influence_requirements()
+
+    # Prepare curve data for chart (costs 0-10+)
+    curve_chart_data = []
+    for cost in range(11):
+        curve_chart_data.append(curve.non_power_by_cost.get(cost, 0))
+    # Add 10+ bucket
+    high_cost = sum(v for k, v in curve.non_power_by_cost.items() if k > 10)
+    if high_cost:
+        curve_chart_data.append(high_cost)
+
+    context = {
+        'deck': deck,
+        'curve': curve,
+        'types': types,
+        'influence': influence,
+        'curve_chart_data': curve_chart_data,
+        'total_cards': len(analyzer.cards),
+        'power_count': len(analyzer.power_cards),
+        'non_power_count': len(analyzer.non_power_cards),
+        'faction_names': DeckAnalyzer.FACTIONS,
+    }
+    return render(request, 'decks/deck_analysis.html', context)
