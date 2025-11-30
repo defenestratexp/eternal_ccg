@@ -15,6 +15,7 @@ from .power_calculator import DeckPowerAnalyzer
 from .draw_simulator import DrawSimulator
 from .deck_analysis import DeckAnalyzer
 from .goldfish_simulator import GoldfishSimulator
+from .battle_simulator import BattleSimulator
 
 
 def deck_list(request):
@@ -860,3 +861,198 @@ def deck_goldfish(request, pk):
         'turn_summaries': turn_summaries,
     }
     return render(request, 'decks/deck_goldfish.html', context)
+
+
+def deck_import(request):
+    """
+    Import a deck from pasted text in Eternal format.
+
+    Format examples:
+        4 Card Name (Set1 #123)
+        3 Another Card (Set2 #45)
+        ---------MARKET---------
+        1 Market Card (Set3 #67)
+    """
+    import re
+
+    if request.method == 'POST':
+        deck_text = request.POST.get('deck_text', '').strip()
+        deck_name = request.POST.get('deck_name', '').strip()
+        deck_format = request.POST.get('format', 'Throne')
+        deck_description = request.POST.get('description', '').strip()
+
+        if not deck_text:
+            messages.error(request, 'Please paste a deck list.')
+            return redirect('decks:deck_import')
+
+        if not deck_name:
+            deck_name = 'Imported Deck'
+
+        # Parse the deck list
+        lines = deck_text.split('\n')
+        main_cards = []
+        market_cards = []
+        in_market = False
+        parse_errors = []
+
+        # Pattern to match: "4 Card Name (Set1 #123)" or just "4 Card Name"
+        card_pattern = re.compile(r'^(\d+)\s+(.+?)(?:\s*\(Set(\d+)\s*#(\d+)\))?$')
+
+        for line_num, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line:
+                continue
+
+            # Check for market separator
+            if 'MARKET' in line.upper() or line.startswith('-'):
+                in_market = True
+                continue
+
+            match = card_pattern.match(line)
+            if match:
+                quantity = int(match.group(1))
+                card_name = match.group(2).strip()
+                set_num = match.group(3)  # May be None
+                card_num = match.group(4)  # May be None
+
+                card_info = {
+                    'quantity': quantity,
+                    'name': card_name,
+                    'set_num': int(set_num) if set_num else None,
+                    'card_num': int(card_num) if card_num else None,
+                    'line': line_num,
+                }
+
+                if in_market:
+                    market_cards.append(card_info)
+                else:
+                    main_cards.append(card_info)
+            else:
+                # Try simpler pattern without set info
+                simple_pattern = re.compile(r'^(\d+)\s+(.+)$')
+                simple_match = simple_pattern.match(line)
+                if simple_match:
+                    quantity = int(simple_match.group(1))
+                    card_name = simple_match.group(2).strip()
+                    card_info = {
+                        'quantity': quantity,
+                        'name': card_name,
+                        'set_num': None,
+                        'card_num': None,
+                        'line': line_num,
+                    }
+                    if in_market:
+                        market_cards.append(card_info)
+                    else:
+                        main_cards.append(card_info)
+                elif line and not line.startswith('#'):
+                    parse_errors.append(f"Line {line_num}: Could not parse '{line}'")
+
+        if not main_cards and not market_cards:
+            messages.error(request, 'Could not parse any cards from the deck list.')
+            return render(request, 'decks/deck_import.html', {
+                'deck_text': deck_text,
+                'deck_name': deck_name,
+                'parse_errors': parse_errors,
+            })
+
+        # Create the deck
+        deck = Deck.objects.create(
+            name=deck_name,
+            format=deck_format,
+            description=deck_description
+        )
+
+        # Match cards to database
+        cards_added = 0
+        cards_not_found = []
+
+        def find_and_add_card(card_info, is_market=False):
+            nonlocal cards_added
+
+            # Try to find the card by set/number first (most accurate)
+            card = None
+            if card_info['set_num'] and card_info['card_num']:
+                card = Card.objects.filter(
+                    card_set__number=card_info['set_num'],
+                    eternal_id=card_info['card_num']
+                ).first()
+
+            # Fall back to name matching
+            if not card:
+                # Try exact match first
+                card = Card.objects.filter(name__iexact=card_info['name']).first()
+
+            if not card:
+                # Try case-insensitive contains
+                card = Card.objects.filter(name__icontains=card_info['name']).first()
+
+            if card:
+                DeckCard.objects.create(
+                    deck=deck,
+                    card=card,
+                    quantity=card_info['quantity'],
+                    is_market=is_market
+                )
+                cards_added += card_info['quantity']
+                return True
+            else:
+                cards_not_found.append(card_info['name'])
+                return False
+
+        # Add main deck cards
+        for card_info in main_cards:
+            find_and_add_card(card_info, is_market=False)
+
+        # Add market cards
+        for card_info in market_cards:
+            find_and_add_card(card_info, is_market=True)
+
+        if cards_not_found:
+            messages.warning(
+                request,
+                f'Deck created with {cards_added} cards. '
+                f'Could not find: {", ".join(cards_not_found[:5])}'
+                f'{"..." if len(cards_not_found) > 5 else ""}'
+            )
+        else:
+            messages.success(request, f'Deck "{deck_name}" imported with {cards_added} cards!')
+
+        return redirect('decks:deck_detail', pk=deck.pk)
+
+    return render(request, 'decks/deck_import.html')
+
+
+def deck_battle(request, pk):
+    """
+    Simulate battles between this deck and another deck.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Get all other decks for comparison
+    other_decks = Deck.objects.exclude(pk=pk).prefetch_related('cards__card')
+
+    simulation_results = None
+    opponent_deck = None
+
+    if request.method == 'POST':
+        opponent_pk = request.POST.get('opponent_deck')
+        num_games = int(request.POST.get('num_games', 100))
+
+        if opponent_pk:
+            opponent_deck = get_object_or_404(
+                Deck.objects.prefetch_related('cards__card'),
+                pk=opponent_pk
+            )
+
+            # Run simulation
+            simulator = BattleSimulator.from_decks(deck, opponent_deck)
+            simulation_results = simulator.simulate_games(num_games)
+
+    context = {
+        'deck': deck,
+        'other_decks': other_decks,
+        'opponent_deck': opponent_deck,
+        'results': simulation_results,
+    }
+    return render(request, 'decks/deck_battle.html', context)

@@ -26,6 +26,8 @@
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'goldfish' %}bg-lime-500{% else %}bg-lime-600 hover:bg-lime-500{% endif %}">Goldfish</a>
     <a href="{% url 'decks:deck_versions' deck.pk %}"
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'versions' %}bg-teal-500{% else %}bg-teal-600 hover:bg-teal-500{% endif %}">Versions</a>
+    <a href="{% url 'decks:deck_battle' deck.pk %}"
+       class="px-4 py-2 rounded text-white text-sm {% if current_page == 'battle' %}bg-red-500{% else %}bg-red-600 hover:bg-red-500{% endif %}">Battle</a>
     {% if show_delete %}
     <form method="post" action="{% url 'decks:deck_delete' deck.pk %}"
           onsubmit="return confirm('Delete this deck?');" class="inline">

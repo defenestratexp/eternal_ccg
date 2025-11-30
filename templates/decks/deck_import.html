@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Import Deck - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">Import Deck</h1>
+        <p class="text-gray-400">Paste a deck list to import</p>
+    </div>
+    <a href="{% url 'decks:deck_list' %}" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white">
+        Back to Decks
+    </a>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Import Form -->
+    <div class="bg-gray-800 rounded-lg p-6">
+        <form method="post">
+            {% csrf_token %}
+
+            <div class="mb-4">
+                <label for="deck_name" class="block text-sm font-medium text-gray-300 mb-1">Deck Name</label>
+                <input type="text" name="deck_name" id="deck_name"
+                       value="{{ deck_name|default:'' }}"
+                       placeholder="Enter deck name"
+                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-amber-500">
+            </div>
+
+            <div class="mb-4">
+                <label for="format" class="block text-sm font-medium text-gray-300 mb-1">Format</label>
+                <select name="format" id="format"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-amber-500">
+                    <option value="Throne">Throne</option>
+                    <option value="Expedition">Expedition</option>
+                    <option value="Draft">Draft</option>
+                </select>
+            </div>
+
+            <div class="mb-4">
+                <label for="description" class="block text-sm font-medium text-gray-300 mb-1">Description (optional)</label>
+                <input type="text" name="description" id="description"
+                       placeholder="Brief deck description"
+                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-amber-500">
+            </div>
+
+            <div class="mb-4">
+                <label for="deck_text" class="block text-sm font-medium text-gray-300 mb-1">Deck List</label>
+                <textarea name="deck_text" id="deck_text" rows="20"
+                          placeholder="Paste your deck list here...
+
+Example:
+4 Torch (Set1 #8)
+4 Oni Ronin (Set1 #13)
+4 Rakano Outlaw (Set1 #20)
+---------MARKET---------
+1 Bore (Set1003 #1)"
+                          class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white font-mono text-sm focus:outline-none focus:border-amber-500">{{ deck_text|default:'' }}</textarea>
+            </div>
+
+            {% if parse_errors %}
+            <div class="mb-4 p-3 bg-red-900/50 border border-red-600 rounded">
+                <h4 class="text-red-400 font-semibold mb-2">Parse Errors:</h4>
+                <ul class="text-red-300 text-sm">
+                    {% for error in parse_errors %}
+                    <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <button type="submit" class="w-full px-4 py-3 bg-amber-600 hover:bg-amber-500 rounded text-white font-semibold">
+                Import Deck
+            </button>
+        </form>
+    </div>
+
+    <!-- Format Help -->
+    <div class="bg-gray-800 rounded-lg p-6">
+        <h2 class="text-lg font-semibold mb-4">Supported Formats</h2>
+
+        <div class="space-y-4">
+            <div>
+                <h3 class="text-amber-400 font-medium mb-2">Eternal Export Format</h3>
+                <p class="text-gray-400 text-sm mb-2">
+                    Copy a deck from Eternal or EternalWarcry:
+                </p>
+                <pre class="bg-gray-900 p-3 rounded text-sm text-gray-300 overflow-x-auto">4 Torch (Set1 #8)
+4 Oni Ronin (Set1 #13)
+4 Champion of Fury (Set2 #187)
+4 Fire Sigil (Set1 #1)
+---------MARKET---------
+1 Bore (Set1003 #1)</pre>
+            </div>
+
+            <div>
+                <h3 class="text-amber-400 font-medium mb-2">Simple Format</h3>
+                <p class="text-gray-400 text-sm mb-2">
+                    Just card names and quantities:
+                </p>
+                <pre class="bg-gray-900 p-3 rounded text-sm text-gray-300 overflow-x-auto">4 Torch
+4 Oni Ronin
+4 Champion of Fury
+4 Fire Sigil
+MARKET
+1 Bore</pre>
+            </div>
+
+            <div class="mt-6 p-4 bg-gray-700/50 rounded">
+                <h3 class="text-gray-300 font-medium mb-2">Tips</h3>
+                <ul class="text-gray-400 text-sm space-y-1">
+                    <li>- Include set numbers for best matching accuracy</li>
+                    <li>- Use "MARKET" or dashes to separate market cards</li>
+                    <li>- Card names are matched case-insensitively</li>
+                    <li>- Lines starting with # are ignored (comments)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h3 class="text-lg font-semibold mb-3">How to Export from EternalWarcry</h3>
+            <ol class="text-gray-400 text-sm space-y-2">
+                <li>1. Go to a deck page on EternalWarcry</li>
+                <li>2. Click "Export" button</li>
+                <li>3. Select "Eternal Format" or "Text"</li>
+                <li>4. Copy the deck list</li>
+                <li>5. Paste it here</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}
