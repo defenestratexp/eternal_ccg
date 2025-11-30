@@ -635,3 +635,31 @@ def deck_compare(request, pk):
         'total_changes': len(added_cards) + len(removed_cards) + len(changed_cards),
     }
     return render(request, 'decks/deck_compare.html', context)
+
+
+def deck_hand_stats(request, pk):
+    """
+    Run Monte Carlo simulation of opening hands and display statistics.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Get number of simulations from query param (default 1000, max 5000)
+    num_sims = min(int(request.GET.get('sims', 1000)), 5000)
+
+    # Run simulation
+    stats = DrawSimulator.run_opening_hand_simulation(deck, num_simulations=num_sims)
+
+    # Prepare chart data
+    power_dist_labels = list(range(8))
+    power_dist_initial = [stats['power_dist_pct'].get(i, 0) for i in range(8)]
+    power_dist_final = [stats['mull_power_dist_pct'].get(i, 0) for i in range(8)]
+
+    context = {
+        'deck': deck,
+        'stats': stats,
+        'num_sims': num_sims,
+        'power_dist_labels': power_dist_labels,
+        'power_dist_initial': power_dist_initial,
+        'power_dist_final': power_dist_final,
+    }
+    return render(request, 'decks/deck_hand_stats.html', context)
