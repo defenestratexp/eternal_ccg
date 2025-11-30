@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Goldfish - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Goldfish Simulator</p>
+    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='goldfish' %}
+</div>
+
+<!-- Game Controls -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <div class="flex flex-wrap gap-4 items-center">
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="new_game">
+            <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white">
+                New Game
+            </button>
+        </form>
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="next_turn">
+            <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white">
+                Next Turn (Auto-Play)
+            </button>
+        </form>
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="simulate_10">
+            <button type="submit" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-white">
+                Simulate 10 Turns
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Game State -->
+<div class="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-white">{{ state.turn }}</div>
+        <div class="text-gray-400 text-sm">Turn</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-amber-500">{{ state.power_available }}/{{ state.power_max }}</div>
+        <div class="text-gray-400 text-sm">Power</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-blue-500">{{ state.hand_size }}</div>
+        <div class="text-gray-400 text-sm">Cards in Hand</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-green-500">{{ state.battlefield_size }}</div>
+        <div class="text-gray-400 text-sm">Units in Play</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-red-500">{{ state.total_damage_potential }}</div>
+        <div class="text-gray-400 text-sm">Attack Power</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-gray-500">{{ state.deck_size }}</div>
+        <div class="text-gray-400 text-sm">Deck</div>
+    </div>
+</div>
+
+<!-- Influence Display -->
+{% if state.influence %}
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h3 class="text-sm font-semibold text-gray-400 mb-2">Influence</h3>
+    <div class="flex gap-4">
+        {% for faction, count in state.influence.items %}
+        <div class="text-center">
+            <div class="text-xl font-bold
+                {% if faction == 'F' %}text-red-400
+                {% elif faction == 'T' %}text-yellow-400
+                {% elif faction == 'J' %}text-green-400
+                {% elif faction == 'P' %}text-blue-400
+                {% elif faction == 'S' %}text-purple-400
+                {% endif %}">{{ count }}</div>
+            <div class="text-gray-500 text-xs">
+                {% if faction == 'F' %}Fire
+                {% elif faction == 'T' %}Time
+                {% elif faction == 'J' %}Justice
+                {% elif faction == 'P' %}Primal
+                {% elif faction == 'S' %}Shadow
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Hand -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Hand ({{ state.hand_size }})</h2>
+    <div class="grid grid-cols-4 md:grid-cols-7 gap-2">
+        {% for card in state.hand %}
+        <div class="relative">
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" alt="{{ card.name }}" class="w-full rounded
+                {% if card in playable_cards %}ring-2 ring-green-500{% else %}opacity-50{% endif %}">
+            {% else %}
+            <div class="w-full h-32 bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 p-1
+                {% if card in playable_cards %}ring-2 ring-green-500{% else %}opacity-50{% endif %}">
+                {{ card.name }}
+            </div>
+            {% endif %}
+            <!-- Play button for playable cards -->
+            {% if card in playable_cards %}
+            <form method="post" class="absolute bottom-1 right-1">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="play_card">
+                <input type="hidden" name="card_index" value="{{ forloop.counter0 }}">
+                <button type="submit" class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-white text-xs">
+                    Play
+                </button>
+            </form>
+            {% endif %}
+            <div class="absolute top-1 left-1 px-1 bg-gray-900 bg-opacity-75 rounded text-xs text-amber-400">
+                {{ card.cost }}
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 col-span-7">No cards in hand</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Battlefield -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Battlefield ({{ state.battlefield_size }})</h2>
+    <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
+        {% for card in state.battlefield %}
+        <div class="relative">
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" alt="{{ card.name }}" class="w-full rounded">
+            {% else %}
+            <div class="w-full h-24 bg-gray-700 rounded flex items-center justify-center text-xs text-gray-400 p-1">
+                {{ card.name }}
+            </div>
+            {% endif %}
+            <div class="absolute bottom-1 left-1 px-1 bg-gray-900 bg-opacity-75 rounded text-xs text-white">
+                {{ card.attack }}/{{ card.health }}
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 col-span-8">No units in play</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Turn Summary (for simulate_10) -->
+{% if turn_summaries %}
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Turn-by-Turn Summary</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="px-3 py-2 text-center">Turn</th>
+                    <th class="px-3 py-2 text-center">Power</th>
+                    <th class="px-3 py-2 text-center">Units</th>
+                    <th class="px-3 py-2 text-center">Damage</th>
+                    <th class="px-3 py-2 text-center">Hand</th>
+                    <th class="px-3 py-2 text-left">Cards Played</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for turn in turn_summaries %}
+                <tr>
+                    <td class="px-3 py-2 text-center font-bold">{{ turn.turn }}</td>
+                    <td class="px-3 py-2 text-center text-amber-400">{{ turn.power_max }}</td>
+                    <td class="px-3 py-2 text-center text-green-400">{{ turn.battlefield_count }}</td>
+                    <td class="px-3 py-2 text-center text-red-400">{{ turn.damage_potential }}</td>
+                    <td class="px-3 py-2 text-center text-blue-400">{{ turn.hand_size }}</td>
+                    <td class="px-3 py-2 text-gray-300">
+                        {% for action in turn.actions %}
+                        <span class="inline-block bg-gray-700 rounded px-1 mr-1 mb-1 text-xs">
+                            {{ action.card.name }}
+                        </span>
+                        {% empty %}
+                        <span class="text-gray-500 text-xs">-</span>
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
