@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Battle Simulator - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Battle Simulator</p>
+    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='battle' %}
+</div>
+
+<!-- Battle Setup -->
+<div class="bg-gray-800 rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-semibold mb-4">Simulate Battle</h2>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-1">Your Deck</label>
+                <div class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-amber-400">
+                    {{ deck.name }}
+                </div>
+            </div>
+
+            <div>
+                <label for="opponent_deck" class="block text-sm font-medium text-gray-300 mb-1">Opponent Deck</label>
+                <select name="opponent_deck" id="opponent_deck" required
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-amber-500">
+                    <option value="">Select opponent...</option>
+                    {% for other in other_decks %}
+                    <option value="{{ other.pk }}" {% if opponent_deck and opponent_deck.pk == other.pk %}selected{% endif %}>
+                        {{ other.name }} ({{ other.main_deck_count }} cards)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div>
+                <label for="num_games" class="block text-sm font-medium text-gray-300 mb-1">Number of Games</label>
+                <select name="num_games" id="num_games"
+                        class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-amber-500">
+                    <option value="50">50 games</option>
+                    <option value="100" selected>100 games</option>
+                    <option value="250">250 games</option>
+                    <option value="500">500 games</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="px-6 py-2 bg-red-600 hover:bg-red-500 rounded text-white font-semibold">
+            Run Battle Simulation
+        </button>
+    </form>
+</div>
+
+{% if results %}
+<!-- Results Summary -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+    <!-- Player 1 Stats -->
+    <div class="bg-gray-800 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-amber-400 mb-4">{{ deck.name }}</h3>
+        <div class="space-y-3">
+            <div class="flex justify-between">
+                <span class="text-gray-400">Wins</span>
+                <span class="text-green-400 font-bold">{{ results.player1_wins }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Win Rate</span>
+                <span class="text-white font-bold">{{ results.player1_win_rate|floatformat:1 }}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Avg Final Health</span>
+                <span class="text-white">{{ results.avg_player1_health|floatformat:1 }}</span>
+            </div>
+        </div>
+        <!-- Win rate bar -->
+        <div class="mt-4 h-4 bg-gray-700 rounded overflow-hidden">
+            <div class="h-full bg-amber-500" style="width: {{ results.player1_win_rate }}%"></div>
+        </div>
+    </div>
+
+    <!-- Match Summary -->
+    <div class="bg-gray-800 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-300 mb-4">Match Results</h3>
+        <div class="space-y-3">
+            <div class="flex justify-between">
+                <span class="text-gray-400">Games Played</span>
+                <span class="text-white font-bold">{{ results.games_played }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Draws</span>
+                <span class="text-gray-300">{{ results.draws }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Avg Game Length</span>
+                <span class="text-white">{{ results.avg_game_length|floatformat:1 }} turns</span>
+            </div>
+        </div>
+        <!-- Visual comparison -->
+        <div class="mt-4 flex items-center justify-center">
+            <div class="text-2xl font-bold">
+                <span class="text-amber-400">{{ results.player1_wins }}</span>
+                <span class="text-gray-500 mx-2">-</span>
+                <span class="text-blue-400">{{ results.player2_wins }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Player 2 Stats -->
+    <div class="bg-gray-800 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-blue-400 mb-4">{{ opponent_deck.name }}</h3>
+        <div class="space-y-3">
+            <div class="flex justify-between">
+                <span class="text-gray-400">Wins</span>
+                <span class="text-green-400 font-bold">{{ results.player2_wins }}</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Win Rate</span>
+                <span class="text-white font-bold">{{ results.player2_win_rate|floatformat:1 }}%</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-gray-400">Avg Final Health</span>
+                <span class="text-white">{{ results.avg_player2_health|floatformat:1 }}</span>
+            </div>
+        </div>
+        <!-- Win rate bar -->
+        <div class="mt-4 h-4 bg-gray-700 rounded overflow-hidden">
+            <div class="h-full bg-blue-500" style="width: {{ results.player2_win_rate }}%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Game Distribution Chart -->
+<div class="bg-gray-800 rounded-lg p-6 mb-6">
+    <h3 class="text-lg font-semibold mb-4">Game Length Distribution</h3>
+    <canvas id="gameLengthChart" height="100"></canvas>
+</div>
+
+<!-- Individual Game Results -->
+<div class="bg-gray-800 rounded-lg p-6">
+    <h3 class="text-lg font-semibold mb-4">Sample Games</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="px-3 py-2 text-left">Game</th>
+                    <th class="px-3 py-2 text-center">Winner</th>
+                    <th class="px-3 py-2 text-center">Turns</th>
+                    <th class="px-3 py-2 text-center">{{ deck.name }} HP</th>
+                    <th class="px-3 py-2 text-center">{{ opponent_deck.name }} HP</th>
+                    <th class="px-3 py-2 text-center">Units Played</th>
+                    <th class="px-3 py-2 text-center">Damage Dealt</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for game in results.results|slice:":20" %}
+                <tr>
+                    <td class="px-3 py-2">{{ forloop.counter }}</td>
+                    <td class="px-3 py-2 text-center">
+                        {% if game.winner == 'player1' %}
+                        <span class="text-amber-400 font-semibold">{{ deck.name }}</span>
+                        {% elif game.winner == 'player2' %}
+                        <span class="text-blue-400 font-semibold">{{ opponent_deck.name }}</span>
+                        {% else %}
+                        <span class="text-gray-400">Draw</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-3 py-2 text-center">{{ game.turns }}</td>
+                    <td class="px-3 py-2 text-center {% if game.player1_final_health == 0 %}text-red-400{% else %}text-green-400{% endif %}">
+                        {{ game.player1_final_health }}
+                    </td>
+                    <td class="px-3 py-2 text-center {% if game.player2_final_health == 0 %}text-red-400{% else %}text-green-400{% endif %}">
+                        {{ game.player2_final_health }}
+                    </td>
+                    <td class="px-3 py-2 text-center text-gray-300">
+                        {{ game.player1_units_played }} / {{ game.player2_units_played }}
+                    </td>
+                    <td class="px-3 py-2 text-center text-gray-300">
+                        {{ game.player1_damage_dealt }} / {{ game.player2_damage_dealt }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if results.results|length > 20 %}
+    <p class="text-gray-500 text-sm mt-3">Showing first 20 games of {{ results.games_played }}</p>
+    {% endif %}
+</div>
+
+<script src="/static/js/chart.min.js"></script>
+<script>
+    // Game length distribution
+    const gameLengths = [{% for game in results.results %}{{ game.turns }},{% endfor %}];
+
+    // Create histogram buckets (5-turn intervals)
+    const buckets = {};
+    gameLengths.forEach(len => {
+        const bucket = Math.floor(len / 5) * 5;
+        buckets[bucket] = (buckets[bucket] || 0) + 1;
+    });
+
+    const sortedBuckets = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+    const labels = sortedBuckets.map(b => `${b}-${b+4}`);
+    const data = sortedBuckets.map(b => buckets[b]);
+
+    new Chart(document.getElementById('gameLengthChart'), {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Games',
+                data: data,
+                backgroundColor: 'rgba(245, 158, 11, 0.5)',
+                borderColor: 'rgb(245, 158, 11)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Games by Turn Count', color: '#9CA3AF' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { color: 'rgba(75, 85, 99, 0.3)' },
+                    ticks: { color: '#9CA3AF' }
+                },
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#9CA3AF' }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+
+{% if not results %}
+<!-- Info Box -->
+<div class="bg-gray-800 rounded-lg p-6">
+    <h3 class="text-lg font-semibold mb-4">About Battle Simulation</h3>
+    <div class="text-gray-400 space-y-3">
+        <p>
+            The battle simulator pits two decks against each other using simplified Eternal game rules
+            to estimate win rates and game statistics.
+        </p>
+        <h4 class="text-amber-400 font-medium">Simulation Rules:</h4>
+        <ul class="list-disc list-inside space-y-1 text-sm">
+            <li>Both players start with 25 health</li>
+            <li>Draw 7 cards, mulligan to 6 if 2 or fewer / 5 or more power</li>
+            <li>Play one power per turn, draw one card per turn</li>
+            <li>Units have summoning sickness (can't attack turn played)</li>
+            <li>Combat: defender blocks with highest health unit</li>
+            <li>Unblocked damage goes to face</li>
+            <li>Game ends at 0 health or deck empty</li>
+        </ul>
+        <h4 class="text-amber-400 font-medium mt-4">Limitations:</h4>
+        <ul class="list-disc list-inside space-y-1 text-sm">
+            <li>No spell effects simulated (just cast for cost)</li>
+            <li>No keywords (flying, overwhelm, etc.)</li>
+            <li>Simple AI: plays power first, then highest cost units</li>
+            <li>No market access</li>
+        </ul>
+        <p class="text-gray-500 text-sm mt-4">
+            Results are best for comparing aggro/midrange matchups based on curve and unit stats.
+        </p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
