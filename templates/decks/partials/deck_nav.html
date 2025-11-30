@@ -22,6 +22,8 @@
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'compare' %}bg-pink-500{% else %}bg-pink-600 hover:bg-pink-500{% endif %}">Compare</a>
     <a href="{% url 'decks:deck_matchups' deck.pk %}"
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'matchups' %}bg-rose-500{% else %}bg-rose-600 hover:bg-rose-500{% endif %}">Matchups</a>
+    <a href="{% url 'decks:deck_goldfish' deck.pk %}"
+       class="px-4 py-2 rounded text-white text-sm {% if current_page == 'goldfish' %}bg-lime-500{% else %}bg-lime-600 hover:bg-lime-500{% endif %}">Goldfish</a>
     <a href="{% url 'decks:deck_versions' deck.pk %}"
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'versions' %}bg-teal-500{% else %}bg-teal-600 hover:bg-teal-500{% endif %}">Versions</a>
     {% if show_delete %}

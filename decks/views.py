@@ -14,6 +14,7 @@ from .image_generator import generate_deck_image
 from .power_calculator import DeckPowerAnalyzer
 from .draw_simulator import DrawSimulator
 from .deck_analysis import DeckAnalyzer
+from .goldfish_simulator import GoldfishSimulator
 
 
 def deck_list(request):
@@ -784,3 +785,78 @@ def deck_delete_matchup(request, pk, matchup_id):
     matchup.delete()
     messages.success(request, 'Matchup deleted!')
     return redirect('decks:deck_matchups', pk=pk)
+
+
+def deck_goldfish(request, pk):
+    """
+    Goldfish simulator - play out turns against an imaginary opponent.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    session_key = f'goldfish_{pk}'
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'new_game':
+            # Start a new game
+            sim = GoldfishSimulator.from_deck(deck)
+            request.session[session_key] = sim.to_dict()
+
+        elif action == 'next_turn':
+            # Advance to next turn
+            sim_data = request.session.get(session_key)
+            if sim_data:
+                sim = GoldfishSimulator.from_dict(sim_data)
+                sim.start_turn()
+                sim.auto_play_turn()
+                request.session[session_key] = sim.to_dict()
+            else:
+                sim = GoldfishSimulator.from_deck(deck)
+                request.session[session_key] = sim.to_dict()
+
+        elif action == 'play_card':
+            # Play a specific card
+            card_index = int(request.POST.get('card_index', -1))
+            sim_data = request.session.get(session_key)
+            if sim_data and card_index >= 0:
+                sim = GoldfishSimulator.from_dict(sim_data)
+                if card_index < len(sim.state.hand):
+                    card = sim.state.hand[card_index]
+                    result = sim.play_card(card)
+                    if result['success']:
+                        request.session[session_key] = sim.to_dict()
+                    else:
+                        messages.error(request, result.get('error', 'Cannot play that card'))
+
+        elif action == 'simulate_10':
+            # Simulate 10 turns
+            sim = GoldfishSimulator.from_deck(deck)
+            turn_summaries = sim.simulate_turns(10)
+            request.session[session_key] = sim.to_dict()
+            request.session[f'{session_key}_turns'] = turn_summaries
+
+        return redirect('decks:deck_goldfish', pk=pk)
+
+    # GET request - load or create simulation
+    sim_data = request.session.get(session_key)
+    if sim_data:
+        sim = GoldfishSimulator.from_dict(sim_data)
+    else:
+        sim = GoldfishSimulator.from_deck(deck)
+        request.session[session_key] = sim.to_dict()
+
+    state = sim.get_state_summary()
+    playable = sim.get_playable_cards()
+
+    # Get turn summaries if we did a simulate_10
+    turn_summaries = request.session.get(f'{session_key}_turns', [])
+
+    context = {
+        'deck': deck,
+        'state': state,
+        'playable_cards': playable,
+        'playable_ids': [id(c) for c in playable],
+        'turn_summaries': turn_summaries,
+    }
+    return render(request, 'decks/deck_goldfish.html', context)

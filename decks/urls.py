@@ -26,6 +26,7 @@ urlpatterns = [
     path('<int:pk>/matchups/add/', views.deck_add_matchup, name='deck_add_matchup'),
     path('<int:pk>/matchups/<int:matchup_id>/record/', views.deck_record_game, name='deck_record_game'),
     path('<int:pk>/matchups/<int:matchup_id>/delete/', views.deck_delete_matchup, name='deck_delete_matchup'),
+    path('<int:pk>/goldfish/', views.deck_goldfish, name='deck_goldfish'),
     # Versioning
     path('<int:pk>/versions/', views.deck_versions, name='deck_versions'),
     path('<int:pk>/versions/create/', views.deck_create_version, name='deck_create_version'),
