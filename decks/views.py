@@ -12,6 +12,7 @@ from cards.models import Card
 from .models import Deck, DeckCard, DeckVersion, DeckVersionCard
 from .image_generator import generate_deck_image
 from .power_calculator import DeckPowerAnalyzer
+from .draw_simulator import DrawSimulator
 
 
 def deck_list(request):
@@ -407,3 +408,68 @@ def deck_power_calculator(request, pk):
         'key_cards': key_cards,
     }
     return render(request, 'decks/deck_power_calculator.html', context)
+
+
+def deck_draw_simulator(request, pk):
+    """
+    Draw simulator view - test opening hands with mulligan mechanics.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Check for existing simulator in session
+    session_key = f'draw_sim_{pk}'
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'new_game':
+            # Start fresh
+            simulator = DrawSimulator.from_deck(deck)
+            request.session[session_key] = simulator.to_dict()
+
+        elif action == 'mulligan':
+            # Take a mulligan
+            sim_data = request.session.get(session_key)
+            if sim_data:
+                simulator = DrawSimulator.from_dict(sim_data)
+                simulator.mulligan()
+                request.session[session_key] = simulator.to_dict()
+            else:
+                simulator = DrawSimulator.from_deck(deck)
+                request.session[session_key] = simulator.to_dict()
+
+        elif action == 'draw':
+            # Draw a card
+            sim_data = request.session.get(session_key)
+            if sim_data:
+                simulator = DrawSimulator.from_dict(sim_data)
+                simulator.draw_card()
+                request.session[session_key] = simulator.to_dict()
+            else:
+                simulator = DrawSimulator.from_deck(deck)
+                request.session[session_key] = simulator.to_dict()
+        else:
+            # Unknown action, start fresh
+            simulator = DrawSimulator.from_deck(deck)
+            request.session[session_key] = simulator.to_dict()
+    else:
+        # GET request - check for existing or start new
+        sim_data = request.session.get(session_key)
+        if sim_data:
+            simulator = DrawSimulator.from_dict(sim_data)
+        else:
+            simulator = DrawSimulator.from_deck(deck)
+            request.session[session_key] = simulator.to_dict()
+
+    # Get hand stats
+    hand_stats = simulator.get_hand_stats()
+
+    context = {
+        'deck': deck,
+        'hand': simulator.current_hand,
+        'hand_stats': hand_stats,
+        'mulligan_count': simulator.mulligan_count,
+        'can_mulligan': simulator.mulligan_count < simulator.max_mulligans,
+        'deck_remaining': len(simulator.remaining_deck),
+    }
+    return render(request, 'decks/deck_draw_simulator.html', context)

@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Draw Simulator - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Draw Simulator</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'decks:deck_detail' deck.pk %}"
+           class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Deck</a>
+        <a href="{% url 'decks:deck_power_calculator' deck.pk %}"
+           class="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded text-white text-sm">Power Calc</a>
+    </div>
+</div>
+
+<!-- Game State Info -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <div class="flex justify-between items-center">
+        <div class="flex items-center gap-6">
+            <div>
+                <span class="text-gray-400">Hand:</span>
+                <span class="text-white font-bold text-xl ml-2">{{ hand_stats.total_cards }}</span>
+                <span class="text-gray-500">cards</span>
+            </div>
+            <div>
+                <span class="text-gray-400">Deck:</span>
+                <span class="text-white font-bold text-xl ml-2">{{ deck_remaining }}</span>
+                <span class="text-gray-500">remaining</span>
+            </div>
+            <div>
+                <span class="text-gray-400">Mulligans:</span>
+                <span class="text-white font-bold text-xl ml-2">{{ mulligan_count }}/2</span>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="new_game">
+                <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-500 rounded text-white text-sm">
+                    New Game
+                </button>
+            </form>
+            {% if can_mulligan %}
+            <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="mulligan">
+                <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white text-sm">
+                    Redraw {% if mulligan_count == 0 %}(7 cards){% else %}(6 cards){% endif %}
+                </button>
+            </form>
+            {% else %}
+            <button disabled class="px-4 py-2 bg-gray-600 rounded text-gray-400 text-sm cursor-not-allowed">
+                No Redraws Left
+            </button>
+            {% endif %}
+            <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="draw">
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-sm">
+                    Draw Card
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Mulligan Rules Reminder -->
+{% if mulligan_count == 0 %}
+<div class="bg-blue-900/30 border border-blue-700 rounded-lg p-3 mb-6 text-sm">
+    <span class="text-blue-400 font-semibold">Mulligan Rules:</span>
+    <span class="text-blue-200">First redraw gives 7 cards with 2-4 power guaranteed. Second redraw gives 6 cards with 2-4 power. After that, you must keep.</span>
+</div>
+{% elif mulligan_count == 1 %}
+<div class="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3 mb-6 text-sm">
+    <span class="text-yellow-400 font-semibold">One redraw remaining.</span>
+    <span class="text-yellow-200">Next redraw will be 6 cards with 2-4 power guaranteed.</span>
+</div>
+{% else %}
+<div class="bg-red-900/30 border border-red-700 rounded-lg p-3 mb-6 text-sm">
+    <span class="text-red-400 font-semibold">No redraws remaining.</span>
+    <span class="text-red-200">This is your final hand.</span>
+</div>
+{% endif %}
+
+<!-- Hand Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-amber-500">{{ hand_stats.power_count }}</div>
+        <div class="text-gray-400 text-sm">Power Cards</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-blue-500">{{ hand_stats.non_power_count }}</div>
+        <div class="text-gray-400 text-sm">Non-Power</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-2xl font-bold">
+            {% for faction, count in hand_stats.influence.items %}
+            <span class="{% if faction == 'F' %}text-red-400{% elif faction == 'T' %}text-yellow-400{% elif faction == 'J' %}text-green-400{% elif faction == 'P' %}text-blue-400{% elif faction == 'S' %}text-purple-400{% endif %}">{{ count }}{{ faction }}</span>{% if not forloop.last %} {% endif %}
+            {% empty %}
+            <span class="text-gray-500">-</span>
+            {% endfor %}
+        </div>
+        <div class="text-gray-400 text-sm">Influence</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        {% if hand_stats.power_count >= 2 and hand_stats.power_count <= 4 %}
+        <div class="text-3xl font-bold text-green-500">Good</div>
+        {% elif hand_stats.power_count < 2 %}
+        <div class="text-3xl font-bold text-red-500">Low</div>
+        {% else %}
+        <div class="text-3xl font-bold text-yellow-500">High</div>
+        {% endif %}
+        <div class="text-gray-400 text-sm">Power Balance</div>
+    </div>
+</div>
+
+<!-- Current Hand - Card Images -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-4">Your Hand</h2>
+    <div class="flex flex-wrap gap-2 justify-center">
+        {% for card in hand %}
+        <div class="relative group">
+            {% if card.image_url %}
+            <img src="{{ card.image_url }}" alt="{{ card.name }}"
+                 class="w-32 rounded-lg border-2 {% if card.is_power %}border-amber-500{% else %}border-gray-600{% endif %} hover:border-white transition-all hover:scale-105">
+            {% else %}
+            <div class="w-32 h-44 rounded-lg border-2 {% if card.is_power %}border-amber-500 bg-amber-900/30{% else %}border-gray-600 bg-gray-700{% endif %} flex items-center justify-center p-2">
+                <span class="text-center text-sm">{{ card.name }}</span>
+            </div>
+            {% endif %}
+            <div class="absolute bottom-0 left-0 right-0 bg-black/80 text-white text-xs p-1 rounded-b-lg text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {{ card.name }}
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500">No cards in hand</p>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Hand Breakdown -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <!-- Power Cards -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-amber-400 font-semibold mb-3">Power Cards ({{ hand_stats.power_count }})</h3>
+        {% if hand_stats.power_cards %}
+        <ul class="space-y-2">
+            {% for card in hand_stats.power_cards %}
+            <li class="flex items-center gap-2 text-sm">
+                <span class="text-gray-300">{{ card.name }}</span>
+                {% if card.influence %}
+                <span class="text-gray-500">
+                    {% for char in card.influence %}
+                        {% if char == 'F' %}<span class="text-red-400">F</span>
+                        {% elif char == 'T' %}<span class="text-yellow-400">T</span>
+                        {% elif char == 'J' %}<span class="text-green-400">J</span>
+                        {% elif char == 'P' %}<span class="text-blue-400">P</span>
+                        {% elif char == 'S' %}<span class="text-purple-400">S</span>
+                        {% endif %}
+                    {% endfor %}
+                </span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm">No power cards in hand</p>
+        {% endif %}
+    </div>
+
+    <!-- Non-Power Cards -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-blue-400 font-semibold mb-3">Non-Power Cards ({{ hand_stats.non_power_count }})</h3>
+        {% if hand_stats.non_power_cards %}
+        <ul class="space-y-2">
+            {% for card in hand_stats.non_power_cards %}
+            <li class="flex items-center gap-2 text-sm">
+                <span class="text-amber-400 w-6">{{ card.cost }}</span>
+                <span class="text-gray-300">{{ card.name }}</span>
+                <span class="text-gray-500">{{ card.card_type }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm">No non-power cards in hand</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
