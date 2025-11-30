@@ -19,6 +19,7 @@ urlpatterns = [
     path('<int:pk>/collection-check/', views.deck_collection_check, name='deck_collection_check'),
     path('<int:pk>/power/', views.deck_power_calculator, name='deck_power_calculator'),
     path('<int:pk>/draw/', views.deck_draw_simulator, name='deck_draw_simulator'),
+    path('<int:pk>/analysis/', views.deck_analysis, name='deck_analysis'),
     # Versioning
     path('<int:pk>/versions/', views.deck_versions, name='deck_versions'),
     path('<int:pk>/versions/create/', views.deck_create_version, name='deck_create_version'),

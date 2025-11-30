@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ deck.name }} - Analysis - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Deck Analysis</p>
+    </div>
+    <div class="flex gap-2">
+        <a href="{% url 'decks:deck_detail' deck.pk %}"
+           class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Deck</a>
+        <a href="{% url 'decks:deck_power_calculator' deck.pk %}"
+           class="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded text-white text-sm">Power Calc</a>
+        <a href="{% url 'decks:deck_draw_simulator' deck.pk %}"
+           class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-white text-sm">Draw Sim</a>
+    </div>
+</div>
+
+<!-- Summary Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-white">{{ total_cards }}</div>
+        <div class="text-gray-400 text-sm">Total Cards</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-amber-500">{{ power_count }}</div>
+        <div class="text-gray-400 text-sm">Power Cards</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-blue-500">{{ non_power_count }}</div>
+        <div class="text-gray-400 text-sm">Non-Power Cards</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-green-500">{{ curve.average_cost }}</div>
+        <div class="text-gray-400 text-sm">Avg. Cost</div>
+    </div>
+</div>
+
+<!-- Mana Curve Chart -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Mana Curve</h2>
+    <p class="text-gray-400 text-sm mb-4">Non-power cards by cost (Peak: {{ curve.peak_cost }} cost)</p>
+    <div class="h-64">
+        <canvas id="curveChart"></canvas>
+    </div>
+</div>
+
+<!-- Curve Details -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Cards by Cost</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        {% for cost, cards in curve.cards_at_cost.items %}
+        {% if not cards.0.is_power %}
+        <div class="bg-gray-700 rounded p-3">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-amber-400 font-bold text-lg">{{ cost }}</span>
+                <span class="text-gray-400 text-sm">{{ curve.non_power_by_cost|default_if_none:0 }} cards</span>
+            </div>
+            <ul class="text-sm space-y-1">
+                {% for card in cards %}
+                {% if not card.is_power %}
+                <li class="text-gray-300 truncate" title="{{ card.name }}">
+                    {% if card.quantity > 1 %}<span class="text-gray-500">{{ card.quantity }}x</span> {% endif %}{{ card.name }}
+                </li>
+                {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Card Type Distribution -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Card Type Distribution</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Chart -->
+        <div class="h-64">
+            <canvas id="typeChart"></canvas>
+        </div>
+        <!-- Breakdown -->
+        <div>
+            <table class="w-full text-sm">
+                <thead class="bg-gray-700">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Type</th>
+                        <th class="px-3 py-2 text-center">Count</th>
+                        <th class="px-3 py-2 text-center">%</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    {% for card_type, count in types.by_type.items %}
+                    {% if card_type != 'Power' and card_type != 'Sigil' %}
+                    <tr>
+                        <td class="px-3 py-2">{{ card_type }}</td>
+                        <td class="px-3 py-2 text-center">{{ count }}</td>
+                        <td class="px-3 py-2 text-center">{{ types.percentages|default_if_none:0 }}%</td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Influence Requirements -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Influence Requirements</h2>
+
+    <!-- Faction Demands Summary -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        {% for faction, data in influence.faction_demands.items %}
+        <div class="bg-gray-700 rounded p-3 text-center
+            {% if faction == 'F' %}border-l-4 border-red-500
+            {% elif faction == 'T' %}border-l-4 border-yellow-500
+            {% elif faction == 'J' %}border-l-4 border-green-500
+            {% elif faction == 'P' %}border-l-4 border-blue-500
+            {% elif faction == 'S' %}border-l-4 border-purple-500
+            {% endif %}">
+            <div class="text-xl font-bold
+                {% if faction == 'F' %}text-red-400
+                {% elif faction == 'T' %}text-yellow-400
+                {% elif faction == 'J' %}text-green-400
+                {% elif faction == 'P' %}text-blue-400
+                {% elif faction == 'S' %}text-purple-400
+                {% endif %}">
+                {{ data.max_pips }}{{ faction }}
+            </div>
+            <div class="text-gray-400 text-xs">Max Required</div>
+            <div class="text-gray-500 text-xs mt-1">{{ data.cards }} cards need {{ faction }}</div>
+        </div>
+        {% empty %}
+        <p class="text-gray-500 col-span-5">No influence requirements (colorless deck)</p>
+        {% endfor %}
+    </div>
+
+    <!-- Hardest Cards to Cast -->
+    <h3 class="text-md font-semibold mb-2 text-amber-400">Hardest Cards to Cast</h3>
+    <div class="overflow-x-auto mb-6">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="px-3 py-2 text-left">Card</th>
+                    <th class="px-3 py-2 text-center">Cost</th>
+                    <th class="px-3 py-2 text-center">Influence</th>
+                    <th class="px-3 py-2 text-center">Type</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for card in influence.hardest_cards %}
+                <tr>
+                    <td class="px-3 py-2">{{ card.name }}</td>
+                    <td class="px-3 py-2 text-center text-amber-400">{{ card.cost }}</td>
+                    <td class="px-3 py-2 text-center">
+                        {% for f, c in card.influence.items %}
+                        <span class="{% if f == 'F' %}text-red-400{% elif f == 'T' %}text-yellow-400{% elif f == 'J' %}text-green-400{% elif f == 'P' %}text-blue-400{% elif f == 'S' %}text-purple-400{% endif %}">{{ c }}{{ f }}</span>
+                        {% endfor %}
+                    </td>
+                    <td class="px-3 py-2 text-center text-gray-400">{{ card.card_type }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="px-3 py-2 text-gray-500">No influence requirements</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Potential Bottlenecks -->
+    {% if influence.potential_bottlenecks %}
+    <h3 class="text-md font-semibold mb-2 text-red-400">Potential Bottlenecks</h3>
+    <p class="text-gray-400 text-sm mb-2">Cards that may be hard to cast on curve (heavy influence requirements)</p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="px-3 py-2 text-left">Card</th>
+                    <th class="px-3 py-2 text-center">Cost</th>
+                    <th class="px-3 py-2 text-center">Influence</th>
+                    <th class="px-3 py-2 text-left">Issue</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for card in influence.potential_bottlenecks %}
+                <tr>
+                    <td class="px-3 py-2">{{ card.name }}</td>
+                    <td class="px-3 py-2 text-center text-amber-400">{{ card.cost }}</td>
+                    <td class="px-3 py-2 text-center">
+                        {% for f, c in card.influence.items %}
+                        <span class="{% if f == 'F' %}text-red-400{% elif f == 'T' %}text-yellow-400{% elif f == 'J' %}text-green-400{% elif f == 'P' %}text-blue-400{% elif f == 'S' %}text-purple-400{% endif %}">{{ c }}{{ f }}</span>
+                        {% endfor %}
+                    </td>
+                    <td class="px-3 py-2 text-gray-400 text-sm">
+                        {% for f, c in card.influence.items %}
+                            {% if c >= 3 %}Needs {{ c }}{{ f }} by turn {{ card.cost }}{% endif %}
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/chart.min.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.borderColor = '#374151';
+
+    // Mana Curve Chart
+    const curveCtx = document.getElementById('curveChart');
+    if (curveCtx) {
+        const curveData = {{ curve_chart_data|safe }};
+        const labels = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+        if (curveData.length > 11) labels.push('10+');
+
+        new Chart(curveCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Cards',
+                    data: curveData,
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        },
+                        title: {
+                            display: true,
+                            text: 'Number of Cards'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Mana Cost'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    }
+
+    // Type Distribution Chart
+    const typeCtx = document.getElementById('typeChart');
+    if (typeCtx) {
+        const typeData = {
+            {% for card_type, count in types.by_type.items %}
+            {% if card_type != 'Power' and card_type != 'Sigil' %}
+            '{{ card_type }}': {{ count }},
+            {% endif %}
+            {% endfor %}
+        };
+
+        const typeColors = {
+            'Unit': '#3b82f6',
+            'Spell': '#8b5cf6',
+            'Fast Spell': '#a855f7',
+            'Attachment': '#22c55e',
+            'Weapon': '#ef4444',
+            'Relic': '#f59e0b',
+            'Relic Weapon': '#f97316',
+            'Curse': '#6b21a8',
+            'Site': '#14b8a6',
+        };
+
+        new Chart(typeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(typeData),
+                datasets: [{
+                    data: Object.values(typeData),
+                    backgroundColor: Object.keys(typeData).map(t => typeColors[t] || '#6b7280'),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
