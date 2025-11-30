@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block title %}{{ deck.name }} - Power Calculator - Eternal Forge{% endblock %}
 
@@ -118,6 +119,26 @@
         {% endif %}
     </div>
 </div>
+
+<!-- Power Odds Chart -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Power Odds Chart</h2>
+    <p class="text-gray-400 text-sm mb-4">Probability of having at least X power by turn</p>
+    <div class="h-64">
+        <canvas id="powerChart"></canvas>
+    </div>
+</div>
+
+<!-- Influence Odds Charts -->
+{% if influence_tables %}
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Influence Odds Charts</h2>
+    <p class="text-gray-400 text-sm mb-4">Probability of having at least X influence by turn (showing 2 influence requirement)</p>
+    <div class="h-64">
+        <canvas id="influenceChart"></canvas>
+    </div>
+</div>
+{% endif %}
 
 <!-- Power Odds Table -->
 <div class="bg-gray-800 rounded-lg p-4 mb-6">
@@ -244,4 +265,167 @@
 <div class="text-center text-gray-500 text-sm mt-8 mb-4">
     <p>Calculations based on hypergeometric distribution. Inspired by <a href="https://www.shiftstoned.com/epc/" target="_blank" class="text-amber-500 hover:underline">ShiftStoned Power Calculator</a>.</p>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/chart.min.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Chart.js defaults for dark theme
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.borderColor = '#374151';
+
+    const turns = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    // Power data from Django
+    const powerData = {
+        {% for row in power_table %}
+        {{ row.turn }}: {
+            power_1: {{ row.power_1 }},
+            power_2: {{ row.power_2 }},
+            power_3: {{ row.power_3 }},
+            power_4: {{ row.power_4 }},
+            power_5: {{ row.power_5 }},
+            power_6: {{ row.power_6 }},
+            power_7: {{ row.power_7 }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    // Power Odds Chart
+    const powerCtx = document.getElementById('powerChart');
+    if (powerCtx) {
+        new Chart(powerCtx, {
+            type: 'line',
+            data: {
+                labels: turns,
+                datasets: [
+                    {
+                        label: '2 Power',
+                        data: turns.map(t => powerData[t]?.power_2 || 0),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: '3 Power',
+                        data: turns.map(t => powerData[t]?.power_3 || 0),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: '4 Power',
+                        data: turns.map(t => powerData[t]?.power_4 || 0),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: '5 Power',
+                        data: turns.map(t => powerData[t]?.power_5 || 0),
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        label: '6 Power',
+                        data: turns.map(t => powerData[t]?.power_6 || 0),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.3,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Probability (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Turn'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+
+    // Influence data from Django
+    const influenceData = {
+        {% for faction, data in influence_tables.items %}
+        '{{ faction }}': {
+            name: '{{ data.name }}',
+            color: {% if faction == 'F' %}'#ef4444'{% elif faction == 'T' %}'#eab308'{% elif faction == 'J' %}'#22c55e'{% elif faction == 'P' %}'#3b82f6'{% elif faction == 'S' %}'#8b5cf6'{% else %}'#9ca3af'{% endif %},
+            data: [{% for row in data.table %}{{ row.inf_2 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    // Influence Odds Chart
+    const influenceCtx = document.getElementById('influenceChart');
+    if (influenceCtx && Object.keys(influenceData).length > 0) {
+        const datasets = Object.entries(influenceData).map(([faction, info]) => ({
+            label: info.name + ' (2)',
+            data: info.data,
+            borderColor: info.color,
+            backgroundColor: info.color + '20',
+            tension: 0.3,
+            fill: false
+        }));
+
+        new Chart(influenceCtx, {
+            type: 'line',
+            data: {
+                labels: turns,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        min: 0,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Probability (%)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Turn'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
 {% endblock %}
