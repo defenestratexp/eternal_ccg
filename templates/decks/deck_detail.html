@@ -8,31 +8,7 @@
         <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
         <p class="text-gray-400">{{ deck.format }} &bull; {{ deck.main_deck_count }} cards</p>
     </div>
-    <div class="flex gap-2">
-        <a href="{% url 'decks:deck_edit' deck.pk %}"
-           class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white text-sm">Edit</a>
-        <a href="{% url 'decks:deck_export_view' deck.pk %}"
-           class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Export</a>
-        <a href="{% url 'decks:deck_image' deck.pk %}" target="_blank"
-           class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-sm">Image</a>
-        <a href="{% url 'decks:deck_collection_check' deck.pk %}"
-           class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-white text-sm">Collection Check</a>
-        <a href="{% url 'decks:deck_power_calculator' deck.pk %}"
-           class="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded text-white text-sm">Power Calc</a>
-        <a href="{% url 'decks:deck_draw_simulator' deck.pk %}"
-           class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded text-white text-sm">Draw Sim</a>
-        <a href="{% url 'decks:deck_analysis' deck.pk %}"
-           class="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded text-white text-sm">Analysis</a>
-        <a href="{% url 'decks:deck_versions' deck.pk %}"
-           class="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded text-white text-sm">Versions</a>
-        <form method="post" action="{% url 'decks:deck_delete' deck.pk %}"
-              onsubmit="return confirm('Delete this deck?');" class="inline">
-            {% csrf_token %}
-            <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-white text-sm">
-                Delete
-            </button>
-        </form>
-    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='detail' show_delete=True %}
 </div>
 
 <!-- Version Info -->

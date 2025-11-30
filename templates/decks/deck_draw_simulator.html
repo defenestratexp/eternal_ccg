@@ -8,12 +8,7 @@
         <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
         <p class="text-gray-400">Draw Simulator</p>
     </div>
-    <div class="flex gap-2">
-        <a href="{% url 'decks:deck_detail' deck.pk %}"
-           class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Deck</a>
-        <a href="{% url 'decks:deck_power_calculator' deck.pk %}"
-           class="px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded text-white text-sm">Power Calc</a>
-    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='draw' %}
 </div>
 
 <!-- Game State Info -->

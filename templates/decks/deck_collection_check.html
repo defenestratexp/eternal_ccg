@@ -8,8 +8,7 @@
         <h1 class="text-2xl font-bold">Collection Check: {{ deck.name }}</h1>
         <p class="text-gray-400">{{ deck.format }} &bull; {{ total_card_types }} unique cards</p>
     </div>
-    <a href="{% url 'decks:deck_detail' deck.pk %}"
-       class="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white text-sm">Back to Deck</a>
+    {% include 'decks/partials/deck_nav.html' with current_page='collection' %}
 </div>
 
 <!-- Summary -->
