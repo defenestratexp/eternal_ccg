@@ -14,7 +14,7 @@
 </div>
 
 <!-- Power Base Summary -->
-<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
     <div class="bg-gray-800 rounded-lg p-4 text-center">
         <div class="text-3xl font-bold text-amber-500">{{ total_power }}</div>
         <div class="text-gray-400 text-sm">Total Power Cards</div>
@@ -34,6 +34,11 @@
         <div class="text-3xl font-bold text-red-500">{{ depleted_count }}</div>
         <div class="text-gray-400 text-sm">Always Depleted</div>
         <div class="text-gray-500 text-xs mt-1">Crests, Monuments</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-cyan-500">{{ colorless_count }}</div>
+        <div class="text-gray-400 text-sm">Colorless/Flexible</div>
+        <div class="text-gray-500 text-xs mt-1">Diplomatic Seal, etc.</div>
     </div>
 </div>
 
@@ -67,7 +72,7 @@
 </div>
 
 <!-- Power Source Details -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
     <!-- Undepleted -->
     <div class="bg-gray-800 rounded-lg p-4">
         <h3 class="text-green-400 font-semibold mb-2">Undepleted Sources</h3>
@@ -108,6 +113,23 @@
         {% if power_sources.depleted %}
         <ul class="space-y-1 text-sm">
             {% for ps in power_sources.depleted %}
+            <li class="flex justify-between">
+                <span class="text-gray-300">{{ ps.card_name }}</span>
+                <span class="text-gray-500">x{{ ps.quantity }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 text-sm">None</p>
+        {% endif %}
+    </div>
+
+    <!-- Colorless -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-cyan-400 font-semibold mb-2">Colorless/Flexible</h3>
+        {% if power_sources.colorless %}
+        <ul class="space-y-1 text-sm">
+            {% for ps in power_sources.colorless %}
             <li class="flex justify-between">
                 <span class="text-gray-300">{{ ps.card_name }}</span>
                 <span class="text-gray-500">x{{ ps.quantity }}</span>
