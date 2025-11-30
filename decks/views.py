@@ -9,7 +9,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib import messages
 from cards.models import Card
-from .models import Deck, DeckCard
+from .models import Deck, DeckCard, DeckVersion, DeckVersionCard
 from .image_generator import generate_deck_image
 
 
@@ -292,3 +292,47 @@ def deck_collection_check(request, pk):
         'deck_complete': total_missing == 0,
     }
     return render(request, 'decks/deck_collection_check.html', context)
+
+
+def deck_versions(request, pk):
+    """
+    List all versions of a deck.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+    versions = deck.versions.all()
+
+    context = {
+        'deck': deck,
+        'versions': versions,
+    }
+    return render(request, 'decks/deck_versions.html', context)
+
+
+@require_POST
+def deck_create_version(request, pk):
+    """
+    Create a snapshot of the current deck state.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+    notes = request.POST.get('notes', '').strip()
+
+    version = deck.create_version_snapshot(notes=notes)
+    messages.success(request, f'Version {version.version_number} created!')
+
+    return redirect('decks:deck_detail', pk=deck.pk)
+
+
+@require_POST
+def deck_restore_version(request, pk, version_number):
+    """
+    Restore a deck to a previous version.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+
+    try:
+        version = deck.restore_version(version_number)
+        messages.success(request, f'Deck restored to version {version.version_number}!')
+    except DeckVersion.DoesNotExist:
+        messages.error(request, 'Version not found.')
+
+    return redirect('decks:deck_detail', pk=deck.pk)

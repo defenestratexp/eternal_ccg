@@ -17,11 +17,34 @@
            class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-sm">Image</a>
         <a href="{% url 'decks:deck_collection_check' deck.pk %}"
            class="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded text-white text-sm">Collection Check</a>
+        <a href="{% url 'decks:deck_versions' deck.pk %}"
+           class="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded text-white text-sm">Versions</a>
         <form method="post" action="{% url 'decks:deck_delete' deck.pk %}"
               onsubmit="return confirm('Delete this deck?');" class="inline">
             {% csrf_token %}
             <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-500 rounded text-white text-sm">
                 Delete
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Version Info -->
+<div class="bg-gray-800 border border-gray-700 rounded-lg p-4 mb-6">
+    <div class="flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <span class="text-gray-400">Current: <span class="text-white font-medium">v{{ deck.current_version_number }}</span> (working)</span>
+            {% if deck.versions.exists %}
+            <span class="text-gray-500">|</span>
+            <span class="text-gray-400">{{ deck.versions.count }} saved version{{ deck.versions.count|pluralize }}</span>
+            {% endif %}
+        </div>
+        <form method="post" action="{% url 'decks:deck_create_version' deck.pk %}" class="flex gap-2">
+            {% csrf_token %}
+            <input type="text" name="notes" placeholder="Version notes..."
+                   class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm w-48">
+            <button type="submit" class="px-3 py-1 bg-teal-600 hover:bg-teal-500 rounded text-white text-sm">
+                Save Version
             </button>
         </form>
     </div>
