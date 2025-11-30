@@ -17,6 +17,7 @@ urlpatterns = [
     path('<int:pk>/export/view/', views.deck_export_view, name='deck_export_view'),
     path('<int:pk>/image/', views.deck_image, name='deck_image'),
     path('<int:pk>/collection-check/', views.deck_collection_check, name='deck_collection_check'),
+    path('<int:pk>/power/', views.deck_power_calculator, name='deck_power_calculator'),
     # Versioning
     path('<int:pk>/versions/', views.deck_versions, name='deck_versions'),
     path('<int:pk>/versions/create/', views.deck_create_version, name='deck_create_version'),

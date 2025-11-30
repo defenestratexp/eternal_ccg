@@ -11,6 +11,7 @@ from django.contrib import messages
 from cards.models import Card
 from .models import Deck, DeckCard, DeckVersion, DeckVersionCard
 from .image_generator import generate_deck_image
+from .power_calculator import DeckPowerAnalyzer
 
 
 def deck_list(request):
@@ -336,3 +337,72 @@ def deck_restore_version(request, pk, version_number):
         messages.error(request, 'Version not found.')
 
     return redirect('decks:deck_detail', pk=deck.pk)
+
+
+def deck_power_calculator(request, pk):
+    """
+    Power calculator view - analyze deck's power base and influence odds.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Initialize the power analyzer
+    analyzer = DeckPowerAnalyzer(deck)
+
+    # Get power source breakdown
+    power_sources = analyzer.get_power_sources_by_category()
+    influence_sources = analyzer.get_influence_sources()
+
+    # Filter to only factions with sources
+    active_factions = {
+        k: v for k, v in influence_sources.items() if v > 0
+    }
+
+    # Generate odds tables
+    power_table = []
+    for turn in range(1, 11):
+        row = {
+            'turn': turn,
+            'cards_seen': 6 + turn,
+        }
+        for power in range(1, 8):
+            odds = analyzer.calculate_power_odds(power, turn)
+            row[f'power_{power}'] = round(odds * 100, 1)
+        power_table.append(row)
+
+    # Generate influence tables for each active faction
+    influence_tables = {}
+    faction_names = {'F': 'Fire', 'T': 'Time', 'J': 'Justice', 'P': 'Primal', 'S': 'Shadow'}
+
+    for faction, count in active_factions.items():
+        table = []
+        for turn in range(1, 11):
+            row = {'turn': turn}
+            for inf in range(1, 5):
+                odds = analyzer.calculate_influence_odds(faction, inf, turn)
+                row[f'inf_{inf}'] = round(odds * 100, 1)
+            table.append(row)
+        influence_tables[faction] = {
+            'name': faction_names.get(faction, faction),
+            'sources': count,
+            'table': table,
+        }
+
+    # Analyze key cards
+    key_cards = analyzer.get_key_cards_analysis()
+
+    context = {
+        'deck': deck,
+        'analyzer': analyzer,
+        'power_sources': power_sources,
+        'influence_sources': active_factions,
+        'faction_names': faction_names,
+        'total_power': analyzer.get_total_power_count(),
+        'total_cards': analyzer.total_cards,
+        'undepleted_count': analyzer.get_undepleted_count(),
+        'depleted_count': analyzer.get_depleted_count(),
+        'conditional_count': analyzer.get_conditional_count(),
+        'power_table': power_table,
+        'influence_tables': influence_tables,
+        'key_cards': key_cards,
+    }
+    return render(request, 'decks/deck_power_calculator.html', context)
