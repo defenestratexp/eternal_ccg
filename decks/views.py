@@ -9,7 +9,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST, require_http_methods
 from django.contrib import messages
 from cards.models import Card
-from .models import Deck, DeckCard, DeckVersion, DeckVersionCard
+from .models import Deck, DeckCard, DeckVersion, DeckVersionCard, DeckTag, DeckMatchup
 from .image_generator import generate_deck_image
 from .power_calculator import DeckPowerAnalyzer
 from .draw_simulator import DrawSimulator
@@ -663,3 +663,124 @@ def deck_hand_stats(request, pk):
         'power_dist_final': power_dist_final,
     }
     return render(request, 'decks/deck_hand_stats.html', context)
+
+
+def deck_matchups(request, pk):
+    """
+    View and manage matchup information for a deck.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+
+    # Handle archetype update
+    if request.method == 'POST' and 'archetype' in request.POST:
+        deck.archetype = request.POST.get('archetype', '').strip()
+        deck.save()
+        messages.success(request, 'Archetype updated!')
+        return redirect('decks:deck_matchups', pk=pk)
+
+    # Get all matchups for this deck
+    matchups = deck.matchups.all()
+
+    # Calculate overall stats
+    total_wins = sum(m.wins for m in matchups)
+    total_losses = sum(m.losses for m in matchups)
+    total_games = total_wins + total_losses
+    overall_win_rate = round(total_wins / total_games * 100, 1) if total_games > 0 else None
+
+    # Group matchups by assessment
+    favorable = [m for m in matchups if m.assessment == 'favorable']
+    even = [m for m in matchups if m.assessment == 'even']
+    unfavorable = [m for m in matchups if m.assessment == 'unfavorable']
+    unknown = [m for m in matchups if m.assessment == 'unknown']
+
+    # Get all other decks for opponent selection
+    other_decks = Deck.objects.exclude(pk=pk).order_by('name')
+
+    # Common archetypes for suggestions
+    common_archetypes = [
+        'Aggro', 'Midrange', 'Control', 'Combo', 'Tempo',
+        'Stonescar Aggro', 'Rakano Aggro', 'Praxis Midrange',
+        'FJS Midrange', 'Xenan Midrange', 'Hooru Control',
+        'Feln Control', 'Reanimator', 'Unitless Control',
+    ]
+
+    context = {
+        'deck': deck,
+        'matchups': matchups,
+        'favorable': favorable,
+        'even': even,
+        'unfavorable': unfavorable,
+        'unknown': unknown,
+        'total_wins': total_wins,
+        'total_losses': total_losses,
+        'total_games': total_games,
+        'overall_win_rate': overall_win_rate,
+        'other_decks': other_decks,
+        'common_archetypes': common_archetypes,
+    }
+    return render(request, 'decks/deck_matchups.html', context)
+
+
+@require_POST
+def deck_add_matchup(request, pk):
+    """
+    Add a new matchup record.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+
+    opponent_deck_id = request.POST.get('opponent_deck')
+    opponent_archetype = request.POST.get('opponent_archetype', '').strip()
+    assessment = request.POST.get('assessment', 'unknown')
+    notes = request.POST.get('notes', '').strip()
+    key_cards = request.POST.get('key_cards', '').strip()
+
+    # Must have either opponent deck or archetype
+    if not opponent_deck_id and not opponent_archetype:
+        messages.error(request, 'Please specify an opponent deck or archetype.')
+        return redirect('decks:deck_matchups', pk=pk)
+
+    matchup = DeckMatchup.objects.create(
+        deck=deck,
+        opponent_deck_id=opponent_deck_id if opponent_deck_id else None,
+        opponent_archetype=opponent_archetype,
+        assessment=assessment,
+        notes=notes,
+        key_cards=key_cards,
+    )
+
+    messages.success(request, 'Matchup added!')
+    return redirect('decks:deck_matchups', pk=pk)
+
+
+@require_POST
+def deck_record_game(request, pk, matchup_id):
+    """
+    Record a win or loss for a matchup.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+    matchup = get_object_or_404(DeckMatchup, pk=matchup_id, deck=deck)
+
+    result = request.POST.get('result')
+    if result == 'win':
+        matchup.wins += 1
+        matchup.save()
+        messages.success(request, 'Win recorded!')
+    elif result == 'loss':
+        matchup.losses += 1
+        matchup.save()
+        messages.success(request, 'Loss recorded!')
+
+    return redirect('decks:deck_matchups', pk=pk)
+
+
+@require_POST
+def deck_delete_matchup(request, pk, matchup_id):
+    """
+    Delete a matchup record.
+    """
+    deck = get_object_or_404(Deck, pk=pk)
+    matchup = get_object_or_404(DeckMatchup, pk=matchup_id, deck=deck)
+
+    matchup.delete()
+    messages.success(request, 'Matchup deleted!')
+    return redirect('decks:deck_matchups', pk=pk)

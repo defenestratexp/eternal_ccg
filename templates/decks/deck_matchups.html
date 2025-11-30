@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Matchups - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Matchup Tracker</p>
+    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='matchups' %}
+</div>
+
+<!-- Deck Archetype -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Deck Archetype</h2>
+    <form method="post" class="flex gap-4 items-center">
+        {% csrf_token %}
+        <select name="archetype" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+            <option value="">Select archetype...</option>
+            <option value="Aggro" {% if deck.archetype == 'Aggro' %}selected{% endif %}>Aggro</option>
+            <option value="Midrange" {% if deck.archetype == 'Midrange' %}selected{% endif %}>Midrange</option>
+            <option value="Control" {% if deck.archetype == 'Control' %}selected{% endif %}>Control</option>
+            <option value="Combo" {% if deck.archetype == 'Combo' %}selected{% endif %}>Combo</option>
+            <option value="Tempo" {% if deck.archetype == 'Tempo' %}selected{% endif %}>Tempo</option>
+        </select>
+        <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 rounded text-white text-sm">
+            Update
+        </button>
+        {% if deck.archetype %}
+        <span class="text-gray-400">Current: <span class="text-white font-medium">{{ deck.archetype }}</span></span>
+        {% endif %}
+    </form>
+</div>
+
+<!-- Overall Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-white">{{ total_games }}</div>
+        <div class="text-gray-400 text-sm">Total Games</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-green-500">{{ total_wins }}</div>
+        <div class="text-gray-400 text-sm">Wins</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-red-500">{{ total_losses }}</div>
+        <div class="text-gray-400 text-sm">Losses</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold {% if overall_win_rate >= 55 %}text-green-500{% elif overall_win_rate >= 45 %}text-yellow-500{% elif overall_win_rate %}text-red-500{% else %}text-gray-500{% endif %}">
+            {% if overall_win_rate %}{{ overall_win_rate }}%{% else %}--{% endif %}
+        </div>
+        <div class="text-gray-400 text-sm">Win Rate</div>
+    </div>
+</div>
+
+<!-- Add Matchup Form -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Add Matchup</h2>
+    <form method="post" action="{% url 'decks:deck_add_matchup' deck.pk %}">
+        {% csrf_token %}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <!-- Opponent Selection -->
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">Opponent Deck (Optional)</label>
+                <select name="opponent_deck" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="">Select one of your decks...</option>
+                    {% for other in other_decks %}
+                    <option value="{{ other.pk }}">{{ other.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">Or Opponent Archetype</label>
+                <input type="text" name="opponent_archetype" placeholder="e.g., Stonescar Aggro"
+                       list="archetype-suggestions"
+                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                <datalist id="archetype-suggestions">
+                    {% for arch in common_archetypes %}
+                    <option value="{{ arch }}">
+                    {% endfor %}
+                </datalist>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block text-sm text-gray-400 mb-2">Assessment</label>
+                <select name="assessment" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="unknown">Unknown</option>
+                    <option value="favorable">Favorable</option>
+                    <option value="even">Even</option>
+                    <option value="unfavorable">Unfavorable</option>
+                </select>
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm text-gray-400 mb-2">Key Cards (comma-separated)</label>
+                <input type="text" name="key_cards" placeholder="e.g., Harsh Rule, Vara"
+                       class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+            </div>
+        </div>
+        <div class="mb-4">
+            <label class="block text-sm text-gray-400 mb-2">Strategy Notes</label>
+            <textarea name="notes" rows="2" placeholder="Mulligan strategy, key plays, what to watch for..."
+                      class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white"></textarea>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white">
+            Add Matchup
+        </button>
+    </form>
+</div>
+
+<!-- Matchup List -->
+{% if matchups %}
+<div class="space-y-6">
+    <!-- Favorable Matchups -->
+    {% if favorable %}
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-green-400 mb-3">Favorable ({{ favorable|length }})</h3>
+        <div class="space-y-3">
+            {% for m in favorable %}
+            {% include 'decks/partials/matchup_card.html' with matchup=m %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Even Matchups -->
+    {% if even %}
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-yellow-400 mb-3">Even ({{ even|length }})</h3>
+        <div class="space-y-3">
+            {% for m in even %}
+            {% include 'decks/partials/matchup_card.html' with matchup=m %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Unfavorable Matchups -->
+    {% if unfavorable %}
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-red-400 mb-3">Unfavorable ({{ unfavorable|length }})</h3>
+        <div class="space-y-3">
+            {% for m in unfavorable %}
+            {% include 'decks/partials/matchup_card.html' with matchup=m %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Unknown Matchups -->
+    {% if unknown %}
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-gray-400 mb-3">Unknown ({{ unknown|length }})</h3>
+        <div class="space-y-3">
+            {% for m in unknown %}
+            {% include 'decks/partials/matchup_card.html' with matchup=m %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="bg-gray-800 rounded-lg p-8 text-center">
+    <p class="text-gray-400 text-lg mb-2">No matchups recorded yet</p>
+    <p class="text-gray-500 text-sm">Add matchups above to track your performance against different decks and archetypes.</p>
+</div>
+{% endif %}
+{% endblock %}
