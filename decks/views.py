@@ -511,3 +511,127 @@ def deck_analysis(request, pk):
         'faction_names': DeckAnalyzer.FACTIONS,
     }
     return render(request, 'decks/deck_analysis.html', context)
+
+
+def deck_compare(request, pk):
+    """
+    Compare current deck with another deck or a previous version.
+    """
+    deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
+
+    # Get comparison target from query param
+    compare_to = request.GET.get('compare_to')
+    compare_version = request.GET.get('version')
+
+    # Build card lookup for main deck
+    deck_cards = {}
+    for dc in deck.cards.select_related('card'):
+        key = (dc.card.name, dc.is_market)
+        deck_cards[key] = {
+            'card': dc.card,
+            'quantity': dc.quantity,
+            'is_market': dc.is_market,
+        }
+
+    # Get comparison data
+    compare_deck = None
+    compare_version_obj = None
+    compare_cards = {}
+
+    if compare_version:
+        # Compare to a specific version
+        try:
+            compare_version_obj = deck.versions.get(version_number=compare_version)
+            for vc in compare_version_obj.cards.select_related('card'):
+                key = (vc.card.name, vc.is_market)
+                compare_cards[key] = {
+                    'card': vc.card,
+                    'quantity': vc.quantity,
+                    'is_market': vc.is_market,
+                }
+        except DeckVersion.DoesNotExist:
+            pass
+    elif compare_to:
+        # Compare to another deck
+        try:
+            compare_deck = Deck.objects.prefetch_related('cards__card').get(pk=compare_to)
+            for dc in compare_deck.cards.select_related('card'):
+                key = (dc.card.name, dc.is_market)
+                compare_cards[key] = {
+                    'card': dc.card,
+                    'quantity': dc.quantity,
+                    'is_market': dc.is_market,
+                }
+        except Deck.DoesNotExist:
+            pass
+
+    # Calculate diff
+    added_cards = []
+    removed_cards = []
+    changed_cards = []
+    unchanged_cards = []
+
+    # Find all unique card keys
+    all_keys = set(deck_cards.keys()) | set(compare_cards.keys())
+
+    for key in all_keys:
+        card_name, is_market = key
+        in_deck = deck_cards.get(key)
+        in_compare = compare_cards.get(key)
+
+        if in_deck and not in_compare:
+            # Card added (in current, not in compare)
+            added_cards.append({
+                'card': in_deck['card'],
+                'quantity': in_deck['quantity'],
+                'is_market': is_market,
+                'change': f"+{in_deck['quantity']}",
+            })
+        elif in_compare and not in_deck:
+            # Card removed (in compare, not in current)
+            removed_cards.append({
+                'card': in_compare['card'],
+                'quantity': in_compare['quantity'],
+                'is_market': is_market,
+                'change': f"-{in_compare['quantity']}",
+            })
+        elif in_deck and in_compare:
+            diff = in_deck['quantity'] - in_compare['quantity']
+            if diff != 0:
+                # Quantity changed
+                changed_cards.append({
+                    'card': in_deck['card'],
+                    'old_qty': in_compare['quantity'],
+                    'new_qty': in_deck['quantity'],
+                    'is_market': is_market,
+                    'change': f"{'+' if diff > 0 else ''}{diff}",
+                    'diff': diff,
+                })
+            else:
+                # Unchanged
+                unchanged_cards.append({
+                    'card': in_deck['card'],
+                    'quantity': in_deck['quantity'],
+                    'is_market': is_market,
+                })
+
+    # Get all decks for comparison dropdown
+    all_decks = Deck.objects.exclude(pk=pk).order_by('name')
+
+    # Get all versions for version dropdown
+    versions = deck.versions.all()
+
+    context = {
+        'deck': deck,
+        'compare_deck': compare_deck,
+        'compare_version': compare_version_obj,
+        'all_decks': all_decks,
+        'versions': versions,
+        'added_cards': sorted(added_cards, key=lambda x: x['card'].name),
+        'removed_cards': sorted(removed_cards, key=lambda x: x['card'].name),
+        'changed_cards': sorted(changed_cards, key=lambda x: x['card'].name),
+        'unchanged_cards': sorted(unchanged_cards, key=lambda x: x['card'].name),
+        'has_comparison': bool(compare_deck or compare_version_obj),
+        'total_changes': len(added_cards) + len(removed_cards) + len(changed_cards),
+    }
+    return render(request, 'decks/deck_compare.html', context)
