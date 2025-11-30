@@ -1,0 +1,53 @@
+<!-- Matchup Card Partial -->
+<div class="bg-gray-700 rounded p-3">
+    <div class="flex justify-between items-start mb-2">
+        <div>
+            <span class="font-semibold text-white">
+                {% if matchup.opponent_deck %}
+                {{ matchup.opponent_deck.name }}
+                {% else %}
+                {{ matchup.opponent_archetype }}
+                {% endif %}
+            </span>
+            {% if matchup.opponent_deck and matchup.opponent_archetype %}
+            <span class="text-gray-400 text-sm ml-2">({{ matchup.opponent_archetype }})</span>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-4">
+            <!-- Win/Loss Record -->
+            <div class="text-sm">
+                <span class="text-green-400">{{ matchup.wins }}W</span>
+                <span class="text-gray-500">-</span>
+                <span class="text-red-400">{{ matchup.losses }}L</span>
+                {% if matchup.win_rate is not None %}
+                <span class="ml-2 text-gray-400">({{ matchup.win_rate }}%)</span>
+                {% endif %}
+            </div>
+            <!-- Quick record buttons -->
+            <form method="post" action="{% url 'decks:deck_record_game' deck.pk matchup.pk %}" class="flex gap-1">
+                {% csrf_token %}
+                <button type="submit" name="result" value="win"
+                        class="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-white text-xs">+W</button>
+                <button type="submit" name="result" value="loss"
+                        class="px-2 py-1 bg-red-600 hover:bg-red-500 rounded text-white text-xs">+L</button>
+            </form>
+            <!-- Delete -->
+            <form method="post" action="{% url 'decks:deck_delete_matchup' deck.pk matchup.pk %}"
+                  onsubmit="return confirm('Delete this matchup?');">
+                {% csrf_token %}
+                <button type="submit" class="text-gray-500 hover:text-red-400 text-sm">x</button>
+            </form>
+        </div>
+    </div>
+    {% if matchup.key_cards %}
+    <div class="text-sm mb-2">
+        <span class="text-gray-400">Key cards:</span>
+        <span class="text-amber-400">{{ matchup.key_cards }}</span>
+    </div>
+    {% endif %}
+    {% if matchup.notes %}
+    <div class="text-sm text-gray-400">
+        {{ matchup.notes }}
+    </div>
+    {% endif %}
+</div>

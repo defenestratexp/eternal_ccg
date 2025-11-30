@@ -37,6 +37,21 @@ class Deck(models.Model):
     # Optional description/notes
     description = models.TextField(blank=True, help_text="Deck description or notes")
 
+    # Archetype/tags for categorization
+    tags = models.ManyToManyField(
+        'DeckTag',
+        blank=True,
+        related_name='decks',
+        help_text="Tags/archetypes for this deck"
+    )
+
+    # Primary archetype (e.g., "Aggro", "Midrange", "Control", "Combo")
+    archetype = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text="Primary archetype (Aggro, Midrange, Control, Combo)"
+    )
+
     # === Timestamps ===
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -352,6 +367,109 @@ class DeckVersionCard(models.Model):
     def __str__(self):
         location = "Market" if self.is_market else "Main"
         return f"{self.quantity}x {self.card.name} [{location}]"
+
+
+class DeckTag(models.Model):
+    """
+    Represents a tag or archetype label for categorizing decks.
+    """
+    name = models.CharField(max_length=50, unique=True, help_text="Tag name")
+    color = models.CharField(
+        max_length=20,
+        default='gray',
+        help_text="Tailwind color class (e.g., 'red', 'blue', 'green')"
+    )
+    description = models.CharField(max_length=200, blank=True, help_text="Tag description")
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
+class DeckMatchup(models.Model):
+    """
+    Represents matchup information between two decks or deck archetypes.
+    """
+    MATCHUP_CHOICES = [
+        ('favorable', 'Favorable'),
+        ('even', 'Even'),
+        ('unfavorable', 'Unfavorable'),
+        ('unknown', 'Unknown'),
+    ]
+
+    # The deck this matchup is for
+    deck = models.ForeignKey(
+        'Deck',
+        on_delete=models.CASCADE,
+        related_name='matchups',
+        help_text="The deck this matchup is recorded for"
+    )
+
+    # Opponent - can be another deck or just a tag/archetype name
+    opponent_deck = models.ForeignKey(
+        'Deck',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='matchups_against',
+        help_text="Specific opponent deck (optional)"
+    )
+
+    opponent_archetype = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Opponent archetype name (e.g., 'Aggro', 'FJS Midrange')"
+    )
+
+    # Matchup assessment
+    assessment = models.CharField(
+        max_length=20,
+        choices=MATCHUP_CHOICES,
+        default='unknown',
+        help_text="How favorable is this matchup"
+    )
+
+    # Win rate tracking
+    wins = models.PositiveIntegerField(default=0)
+    losses = models.PositiveIntegerField(default=0)
+
+    # Notes about the matchup
+    notes = models.TextField(
+        blank=True,
+        help_text="Strategy notes for this matchup"
+    )
+
+    # Key cards to look for
+    key_cards = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Important cards in this matchup (comma-separated)"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        opponent = self.opponent_deck.name if self.opponent_deck else self.opponent_archetype
+        return f"{self.deck.name} vs {opponent}"
+
+    @property
+    def win_rate(self):
+        """Calculate win rate percentage."""
+        total = self.wins + self.losses
+        if total == 0:
+            return None
+        return round(self.wins / total * 100, 1)
+
+    @property
+    def total_games(self):
+        return self.wins + self.losses
 
 
 class DeckCard(models.Model):
