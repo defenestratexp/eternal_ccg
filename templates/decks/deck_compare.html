@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}{{ deck.name }} - Compare - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Deck Comparison</p>
+    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='compare' %}
+</div>
+
+<!-- Comparison Selector -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Compare Against</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Compare to another deck -->
+        <div>
+            <label class="block text-sm text-gray-400 mb-2">Another Deck</label>
+            <form method="get" class="flex gap-2">
+                <select name="compare_to" class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="">Select a deck...</option>
+                    {% for other_deck in all_decks %}
+                    <option value="{{ other_deck.pk }}" {% if compare_deck.pk == other_deck.pk %}selected{% endif %}>
+                        {{ other_deck.name }} ({{ other_deck.format }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-sm">
+                    Compare
+                </button>
+            </form>
+        </div>
+
+        <!-- Compare to a version -->
+        <div>
+            <label class="block text-sm text-gray-400 mb-2">Previous Version</label>
+            <form method="get" class="flex gap-2">
+                <select name="version" class="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+                    <option value="">Select a version...</option>
+                    {% for version in versions %}
+                    <option value="{{ version.version_number }}" {% if compare_version.version_number == version.version_number %}selected{% endif %}>
+                        v{{ version.version_number }} - {{ version.created_at|date:"M d, Y H:i" }}
+                        {% if version.notes %}- {{ version.notes }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="px-4 py-2 bg-teal-600 hover:bg-teal-500 rounded text-white text-sm">
+                    Compare
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% if has_comparison %}
+<!-- Comparison Summary -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <div class="flex justify-between items-center mb-4">
+        <div>
+            <h2 class="text-lg font-semibold">
+                Comparing: {{ deck.name }}
+                <span class="text-gray-400">vs</span>
+                {% if compare_deck %}
+                {{ compare_deck.name }}
+                {% elif compare_version %}
+                v{{ compare_version.version_number }}
+                {% endif %}
+            </h2>
+            <p class="text-gray-400 text-sm">{{ total_changes }} change{{ total_changes|pluralize }}</p>
+        </div>
+        <div class="flex gap-4 text-sm">
+            <span class="text-green-400">+{{ added_cards|length }} added</span>
+            <span class="text-red-400">-{{ removed_cards|length }} removed</span>
+            <span class="text-yellow-400">{{ changed_cards|length }} modified</span>
+        </div>
+    </div>
+</div>
+
+<!-- Changes Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+    <!-- Added Cards -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-green-400 mb-3">Added ({{ added_cards|length }})</h3>
+        {% if added_cards %}
+        <div class="space-y-2">
+            {% for item in added_cards %}
+            <div class="flex justify-between items-center text-sm {% if item.is_market %}bg-gray-700 rounded px-2 py-1{% endif %}">
+                <span class="text-white">
+                    {{ item.card.name }}
+                    {% if item.is_market %}<span class="text-purple-400 text-xs">(Market)</span>{% endif %}
+                </span>
+                <span class="text-green-400 font-mono">{{ item.change }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm">No cards added</p>
+        {% endif %}
+    </div>
+
+    <!-- Removed Cards -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-red-400 mb-3">Removed ({{ removed_cards|length }})</h3>
+        {% if removed_cards %}
+        <div class="space-y-2">
+            {% for item in removed_cards %}
+            <div class="flex justify-between items-center text-sm {% if item.is_market %}bg-gray-700 rounded px-2 py-1{% endif %}">
+                <span class="text-white">
+                    {{ item.card.name }}
+                    {% if item.is_market %}<span class="text-purple-400 text-xs">(Market)</span>{% endif %}
+                </span>
+                <span class="text-red-400 font-mono">{{ item.change }}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm">No cards removed</p>
+        {% endif %}
+    </div>
+
+    <!-- Changed Cards -->
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold text-yellow-400 mb-3">Modified ({{ changed_cards|length }})</h3>
+        {% if changed_cards %}
+        <div class="space-y-2">
+            {% for item in changed_cards %}
+            <div class="flex justify-between items-center text-sm {% if item.is_market %}bg-gray-700 rounded px-2 py-1{% endif %}">
+                <span class="text-white">
+                    {{ item.card.name }}
+                    {% if item.is_market %}<span class="text-purple-400 text-xs">(Market)</span>{% endif %}
+                </span>
+                <span class="{% if item.diff > 0 %}text-green-400{% else %}text-red-400{% endif %} font-mono">
+                    {{ item.old_qty }} → {{ item.new_qty }} ({{ item.change }})
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 text-sm">No quantity changes</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Unchanged Cards (Collapsible) -->
+<div class="bg-gray-800 rounded-lg p-4">
+    <details>
+        <summary class="text-lg font-semibold text-gray-400 cursor-pointer hover:text-white">
+            Unchanged ({{ unchanged_cards|length }} cards)
+        </summary>
+        <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+            {% for item in unchanged_cards %}
+            <div class="text-sm text-gray-400 {% if item.is_market %}bg-gray-700 rounded px-2 py-1{% endif %}">
+                {{ item.quantity }}x {{ item.card.name }}
+                {% if item.is_market %}<span class="text-purple-400 text-xs">(M)</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+</div>
+
+{% else %}
+<!-- No comparison selected -->
+<div class="bg-gray-800 rounded-lg p-8 text-center">
+    <p class="text-gray-400 text-lg mb-2">Select a deck or version to compare</p>
+    <p class="text-gray-500 text-sm">
+        Compare your current deck against another deck or a previous version to see what changed.
+    </p>
+</div>
+{% endif %}
+{% endblock %}
