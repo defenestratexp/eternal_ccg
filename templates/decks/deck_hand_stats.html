@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% load static deck_filters %}
+
+{% block title %}{{ deck.name }} - Hand Statistics - Eternal Forge{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-6">
+    <div>
+        <h1 class="text-2xl font-bold">{{ deck.name }}</h1>
+        <p class="text-gray-400">Opening Hand Statistics ({{ num_sims }} simulations)</p>
+    </div>
+    {% include 'decks/partials/deck_nav.html' with current_page='hand_stats' %}
+</div>
+
+<!-- Simulation Controls -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <form method="get" class="flex items-center gap-4">
+        <label class="text-gray-400">Simulations:</label>
+        <select name="sims" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white">
+            <option value="500" {% if num_sims == 500 %}selected{% endif %}>500</option>
+            <option value="1000" {% if num_sims == 1000 %}selected{% endif %}>1,000</option>
+            <option value="2500" {% if num_sims == 2500 %}selected{% endif %}>2,500</option>
+            <option value="5000" {% if num_sims == 5000 %}selected{% endif %}>5,000</option>
+        </select>
+        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white text-sm">
+            Re-run Simulation
+        </button>
+    </form>
+</div>
+
+<!-- Key Statistics -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-green-500">{{ stats.keep_rate_pct }}%</div>
+        <div class="text-gray-400 text-sm">Keep Initial Hand</div>
+        <div class="text-gray-500 text-xs mt-1">(2-4 power)</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-yellow-500">{{ stats.mulligan_once_pct }}%</div>
+        <div class="text-gray-400 text-sm">Mulligan Once</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-red-500">{{ stats.mulligan_twice_pct }}%</div>
+        <div class="text-gray-400 text-sm">Mulligan Twice</div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4 text-center">
+        <div class="text-3xl font-bold text-blue-500">{{ stats.hands_with_2_4_power_pct }}%</div>
+        <div class="text-gray-400 text-sm">Final 2-4 Power</div>
+        <div class="text-gray-500 text-xs mt-1">(after mulligans)</div>
+    </div>
+</div>
+
+<!-- Average Power -->
+<div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold mb-3">Average Power Cards</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-amber-500">{{ stats.avg_power_initial }}</div>
+                <div class="text-gray-400 text-sm">Initial Hand</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-green-500">{{ stats.avg_power_after_mull }}</div>
+                <div class="text-gray-400 text-sm">After Mulligans</div>
+            </div>
+        </div>
+    </div>
+    <div class="bg-gray-800 rounded-lg p-4">
+        <h3 class="text-lg font-semibold mb-3">Problem Hands</h3>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-red-500">{{ stats.hands_screw_pct }}%</div>
+                <div class="text-gray-400 text-sm">Power Screw (0-1)</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-blue-500">{{ stats.hands_flood_pct }}%</div>
+                <div class="text-gray-400 text-sm">Power Flood (5+)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Power Distribution Chart -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Power Distribution</h2>
+    <div class="h-64">
+        <canvas id="powerDistChart"></canvas>
+    </div>
+</div>
+
+<!-- Early Game Playability -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Early Game Playability</h2>
+    <p class="text-gray-400 text-sm mb-4">Percentage of hands with at least one playable card by turn</p>
+    <div class="grid grid-cols-3 gap-4">
+        <div class="bg-gray-700 rounded p-4 text-center">
+            <div class="text-2xl font-bold {% if stats.playable_turn_1_pct >= 70 %}text-green-500{% elif stats.playable_turn_1_pct >= 50 %}text-yellow-500{% else %}text-red-500{% endif %}">
+                {{ stats.playable_turn_1_pct }}%
+            </div>
+            <div class="text-gray-400 text-sm">Turn 1 Play</div>
+            <div class="text-gray-500 text-xs">(1-cost or less)</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4 text-center">
+            <div class="text-2xl font-bold {% if stats.playable_turn_2_pct >= 80 %}text-green-500{% elif stats.playable_turn_2_pct >= 60 %}text-yellow-500{% else %}text-red-500{% endif %}">
+                {{ stats.playable_turn_2_pct }}%
+            </div>
+            <div class="text-gray-400 text-sm">Turn 2 Play</div>
+            <div class="text-gray-500 text-xs">(2-cost or less)</div>
+        </div>
+        <div class="bg-gray-700 rounded p-4 text-center">
+            <div class="text-2xl font-bold {% if stats.playable_turn_3_pct >= 90 %}text-green-500{% elif stats.playable_turn_3_pct >= 70 %}text-yellow-500{% else %}text-red-500{% endif %}">
+                {{ stats.playable_turn_3_pct }}%
+            </div>
+            <div class="text-gray-400 text-sm">Turn 3 Play</div>
+            <div class="text-gray-500 text-xs">(3-cost or less)</div>
+        </div>
+    </div>
+</div>
+
+<!-- Average Influence -->
+{% if stats.avg_influence %}
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Average Influence in Opening Hand</h2>
+    <div class="grid grid-cols-5 gap-4">
+        {% for faction, avg in stats.avg_influence.items %}
+        <div class="text-center">
+            <div class="text-2xl font-bold
+                {% if faction == 'F' %}text-red-400
+                {% elif faction == 'T' %}text-yellow-400
+                {% elif faction == 'J' %}text-green-400
+                {% elif faction == 'P' %}text-blue-400
+                {% elif faction == 'S' %}text-purple-400
+                {% endif %}">{{ avg }}</div>
+            <div class="text-gray-400 text-sm">
+                {% if faction == 'F' %}Fire
+                {% elif faction == 'T' %}Time
+                {% elif faction == 'J' %}Justice
+                {% elif faction == 'P' %}Primal
+                {% elif faction == 'S' %}Shadow
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Card Appearance Rates -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Card Appearance in Opening Hands</h2>
+    <p class="text-gray-400 text-sm mb-4">How often each card appears in your opening hand (initial draw)</p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="px-3 py-2 text-left">Card</th>
+                    <th class="px-3 py-2 text-center">Appearances</th>
+                    <th class="px-3 py-2 text-center">Rate</th>
+                    <th class="px-3 py-2 text-left">Frequency</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for card_name, count in stats.top_cards %}
+                <tr>
+                    <td class="px-3 py-2">{{ card_name }}</td>
+                    <td class="px-3 py-2 text-center">{{ count }}</td>
+                    <td class="px-3 py-2 text-center">{{ stats.card_appearance_pct|get_item:card_name }}%</td>
+                    <td class="px-3 py-2">
+                        <div class="w-full bg-gray-700 rounded h-2">
+                            <div class="bg-blue-500 rounded h-2" style="width: {{ stats.card_appearance_pct|get_item:card_name }}%"></div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/chart.min.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    Chart.defaults.color = '#9ca3af';
+    Chart.defaults.borderColor = '#374151';
+
+    const ctx = document.getElementById('powerDistChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: {{ power_dist_labels|safe }},
+                datasets: [
+                    {
+                        label: 'Initial Hand',
+                        data: {{ power_dist_initial|safe }},
+                        backgroundColor: 'rgba(245, 158, 11, 0.7)',
+                        borderColor: 'rgba(245, 158, 11, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'After Mulligans',
+                        data: {{ power_dist_final|safe }},
+                        backgroundColor: 'rgba(34, 197, 94, 0.7)',
+                        borderColor: 'rgba(34, 197, 94, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Percentage of Hands'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Power Cards in Hand'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

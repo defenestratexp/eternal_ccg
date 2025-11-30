@@ -14,6 +14,8 @@
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'power' %}bg-orange-500{% else %}bg-orange-600 hover:bg-orange-500{% endif %}">Power Calc</a>
     <a href="{% url 'decks:deck_draw_simulator' deck.pk %}"
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'draw' %}bg-indigo-500{% else %}bg-indigo-600 hover:bg-indigo-500{% endif %}">Draw Sim</a>
+    <a href="{% url 'decks:deck_hand_stats' deck.pk %}"
+       class="px-4 py-2 rounded text-white text-sm {% if current_page == 'hand_stats' %}bg-emerald-500{% else %}bg-emerald-600 hover:bg-emerald-500{% endif %}">Hand Stats</a>
     <a href="{% url 'decks:deck_analysis' deck.pk %}"
        class="px-4 py-2 rounded text-white text-sm {% if current_page == 'analysis' %}bg-cyan-500{% else %}bg-cyan-600 hover:bg-cyan-500{% endif %}">Analysis</a>
     <a href="{% url 'decks:deck_compare' deck.pk %}"

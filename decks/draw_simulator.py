@@ -279,3 +279,156 @@ class DrawSimulator:
         simulator.remaining_deck = [make_card(c) for c in data['remaining_deck']]
         simulator.mulligan_count = data['mulligan_count']
         return simulator
+
+    @classmethod
+    def run_opening_hand_simulation(cls, deck, num_simulations: int = 1000) -> dict:
+        """
+        Run multiple simulations to get statistical data about opening hands.
+
+        Args:
+            deck: A Deck model instance
+            num_simulations: Number of hands to simulate (default 1000)
+
+        Returns:
+            Dict with statistical analysis
+        """
+        results = {
+            'num_simulations': num_simulations,
+            # Power distribution in initial hand
+            'power_distribution': {i: 0 for i in range(8)},
+            # Power distribution after mulligans
+            'mulligan_power_dist': {i: 0 for i in range(8)},
+            # Average power in opening hand
+            'avg_power_initial': 0,
+            'avg_power_after_mull': 0,
+            # Keep/mulligan decisions
+            'keep_rate': 0,
+            'mulligan_once': 0,
+            'mulligan_twice': 0,
+            # Card appearance rates
+            'card_appearance': {},
+            # Hands with specific power counts
+            'hands_with_2_4_power': 0,
+            'hands_screw': 0,  # 0-1 power
+            'hands_flood': 0,  # 5+ power
+            # Curve analysis
+            'playable_turn_1': 0,
+            'playable_turn_2': 0,
+            'playable_turn_3': 0,
+            # Influence availability
+            'influence_in_hand': {'F': 0, 'T': 0, 'J': 0, 'P': 0, 'S': 0},
+        }
+
+        total_power_initial = 0
+        total_power_final = 0
+
+        for _ in range(num_simulations):
+            sim = cls.from_deck(deck)
+
+            # Check initial hand
+            initial_stats = sim.get_hand_stats()
+            initial_power = initial_stats['power_count']
+            total_power_initial += initial_power
+            results['power_distribution'][min(initial_power, 7)] += 1
+
+            # Track card appearances
+            for card in sim.current_hand:
+                if card.name not in results['card_appearance']:
+                    results['card_appearance'][card.name] = 0
+                results['card_appearance'][card.name] += 1
+
+            # Decide if we should mulligan (simple heuristic: mulligan if <2 or >4 power)
+            mulligans_taken = 0
+            if initial_power < 2 or initial_power > 4:
+                sim.mulligan()
+                mulligans_taken = 1
+                stats_after_mull1 = sim.get_hand_stats()
+
+                # Check if we should mulligan again
+                if stats_after_mull1['power_count'] < 2 or stats_after_mull1['power_count'] > 4:
+                    sim.mulligan()
+                    mulligans_taken = 2
+
+            # Get final hand stats
+            final_stats = sim.get_hand_stats()
+            final_power = final_stats['power_count']
+            total_power_final += final_power
+            results['mulligan_power_dist'][min(final_power, 7)] += 1
+
+            # Track mulligan decisions
+            if mulligans_taken == 0:
+                results['keep_rate'] += 1
+            elif mulligans_taken == 1:
+                results['mulligan_once'] += 1
+            else:
+                results['mulligan_twice'] += 1
+
+            # Analyze final hand
+            if 2 <= final_power <= 4:
+                results['hands_with_2_4_power'] += 1
+            if final_power <= 1:
+                results['hands_screw'] += 1
+            if final_power >= 5:
+                results['hands_flood'] += 1
+
+            # Check playability by turn
+            non_power_costs = [c.cost for c in final_stats['non_power_cards']]
+            if any(c <= 1 for c in non_power_costs):
+                results['playable_turn_1'] += 1
+            if any(c <= 2 for c in non_power_costs):
+                results['playable_turn_2'] += 1
+            if any(c <= 3 for c in non_power_costs):
+                results['playable_turn_3'] += 1
+
+            # Track influence
+            for faction, count in final_stats['influence'].items():
+                results['influence_in_hand'][faction] += count
+
+        # Calculate averages and percentages
+        results['avg_power_initial'] = round(total_power_initial / num_simulations, 2)
+        results['avg_power_after_mull'] = round(total_power_final / num_simulations, 2)
+
+        # Convert counts to percentages
+        results['keep_rate_pct'] = round(results['keep_rate'] / num_simulations * 100, 1)
+        results['mulligan_once_pct'] = round(results['mulligan_once'] / num_simulations * 100, 1)
+        results['mulligan_twice_pct'] = round(results['mulligan_twice'] / num_simulations * 100, 1)
+
+        results['hands_with_2_4_power_pct'] = round(results['hands_with_2_4_power'] / num_simulations * 100, 1)
+        results['hands_screw_pct'] = round(results['hands_screw'] / num_simulations * 100, 1)
+        results['hands_flood_pct'] = round(results['hands_flood'] / num_simulations * 100, 1)
+
+        results['playable_turn_1_pct'] = round(results['playable_turn_1'] / num_simulations * 100, 1)
+        results['playable_turn_2_pct'] = round(results['playable_turn_2'] / num_simulations * 100, 1)
+        results['playable_turn_3_pct'] = round(results['playable_turn_3'] / num_simulations * 100, 1)
+
+        # Convert power distribution to percentages
+        results['power_dist_pct'] = {
+            k: round(v / num_simulations * 100, 1)
+            for k, v in results['power_distribution'].items()
+        }
+        results['mull_power_dist_pct'] = {
+            k: round(v / num_simulations * 100, 1)
+            for k, v in results['mulligan_power_dist'].items()
+        }
+
+        # Average influence per hand
+        results['avg_influence'] = {
+            k: round(v / num_simulations, 2)
+            for k, v in results['influence_in_hand'].items()
+            if v > 0
+        }
+
+        # Top cards by appearance (sorted)
+        results['top_cards'] = sorted(
+            results['card_appearance'].items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:20]
+
+        # Card appearance as percentage
+        results['card_appearance_pct'] = {
+            name: round(count / num_simulations * 100, 1)
+            for name, count in results['card_appearance'].items()
+        }
+
+        return results
