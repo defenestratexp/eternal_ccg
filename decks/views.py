@@ -478,7 +478,7 @@ def deck_draw_simulator(request, pk):
 
 def deck_analysis(request, pk):
     """
-    Comprehensive deck analysis view - curve, types, influence requirements.
+    Comprehensive deck analysis view - curve, types, influence requirements, synergies.
     """
     deck = get_object_or_404(Deck.objects.prefetch_related('cards__card'), pk=pk)
 
@@ -487,6 +487,7 @@ def deck_analysis(request, pk):
     curve = analyzer.analyze_curve()
     types = analyzer.analyze_type_distribution()
     influence = analyzer.analyze_influence_requirements()
+    synergies = analyzer.analyze_synergies()
 
     # Prepare curve data for chart (costs 0-10+)
     curve_chart_data = []
@@ -502,6 +503,7 @@ def deck_analysis(request, pk):
         'curve': curve,
         'types': types,
         'influence': influence,
+        'synergies': synergies,
         'curve_chart_data': curve_chart_data,
         'total_cards': len(analyzer.cards),
         'power_count': len(analyzer.power_cards),

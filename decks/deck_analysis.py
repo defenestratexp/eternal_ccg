@@ -8,6 +8,7 @@ Provides various analysis features:
 - Synergy detection
 """
 
+import re
 from collections import defaultdict
 from typing import Dict, List, Tuple
 from dataclasses import dataclass
@@ -56,12 +57,52 @@ class InfluenceAnalysis:
     total_pips: Dict[str, int]
 
 
+@dataclass
+class SynergyAnalysis:
+    """Synergy and keyword analysis results."""
+    # Keywords found: {'Flying': {'count': 12, 'cards': [...]}, ...}
+    keywords: Dict[str, dict]
+    # Unit types/tribes: {'Soldier': {'count': 8, 'cards': [...]}, ...}
+    unit_types: Dict[str, dict]
+    # Synergy packages detected: [{'name': 'Lifesteal Package', 'cards': [...], 'strength': 0.8}, ...]
+    synergy_packages: List[dict]
+    # Cards that enable synergies (grant keywords, buff tribes, etc.)
+    enablers: List[dict]
+    # Cards that payoff synergies (benefit from keywords, tribal, etc.)
+    payoffs: List[dict]
+
+
 class DeckAnalyzer:
     """
     Comprehensive deck analysis tool.
     """
 
     FACTIONS = {'F': 'Fire', 'T': 'Time', 'J': 'Justice', 'P': 'Primal', 'S': 'Shadow'}
+
+    # Keywords to detect in card text
+    KEYWORDS = [
+        'Flying', 'Overwhelm', 'Lifesteal', 'Deadly', 'Quickdraw', 'Endurance',
+        'Aegis', 'Charge', 'Unblockable', 'Revenge', 'Destiny', 'Echo',
+        'Warp', 'Infiltrate', 'Killer', 'Reckless', 'Scout', 'Mentor',
+        'Student', 'Tribute', 'Ultimate', 'Summon', 'Entomb', 'Spark',
+        'Spellcraft', 'Empower', 'Twist', 'Plunder', 'Imbue', 'Inscribe',
+        'Amplify', 'Invoke', 'Bond', 'Ally', 'Renown', 'Berserk',
+        'Double Damage', 'Lifegain', 'Silence', 'Stun', 'Shift',
+    ]
+
+    # Patterns indicating enablers (cards that grant abilities to others)
+    ENABLER_PATTERNS = [
+        'gives', 'grant', 'other .* get', 'other .* have', 'your .* get',
+        'your .* have', 'all .* get', 'all .* have', 'units get', 'units have',
+        'when another', 'each other', 'friendly .* get', 'friendly .* have',
+    ]
+
+    # Patterns indicating payoffs (cards that benefit from conditions)
+    PAYOFF_PATTERNS = [
+        'for each', 'if you have', 'when you play', 'whenever you',
+        'gets \\+', 'gain \\+', 'equal to', 'based on', 'per ',
+        'for every', 'if .* in your void', 'if .* in play',
+    ]
 
     def __init__(self, deck):
         """
@@ -273,6 +314,160 @@ class DeckAnalyzer:
             total_pips=total_pips,
         )
 
+    def analyze_synergies(self) -> SynergyAnalysis:
+        """
+        Analyze synergies, keywords, and tribal elements in the deck.
+
+        Returns:
+            SynergyAnalysis with keyword, tribal, and synergy data
+        """
+        keywords = defaultdict(lambda: {'count': 0, 'cards': []})
+        unit_types = defaultdict(lambda: {'count': 0, 'cards': []})
+        enablers = []
+        payoffs = []
+
+        seen_cards = set()
+
+        for card in self.non_power_cards:
+            card_text = card['card_text'] or ''
+            card_text_lower = card_text.lower()
+            card_name = card['name']
+
+            # Skip duplicates for card lists (but count quantities)
+            is_new_card = card_name not in seen_cards
+            if is_new_card:
+                seen_cards.add(card_name)
+
+            # Detect keywords
+            for keyword in self.KEYWORDS:
+                # Check if keyword appears in card text (case-insensitive)
+                if re.search(rf'\b{keyword}\b', card_text, re.IGNORECASE):
+                    keywords[keyword]['count'] += card['quantity']
+                    if is_new_card:
+                        keywords[keyword]['cards'].append({
+                            'name': card_name,
+                            'quantity': card['quantity'],
+                            'card_type': card['card_type'],
+                            'cost': card['cost'],
+                        })
+
+            # Parse unit types
+            if card['unit_types']:
+                types = [t.strip() for t in card['unit_types'].split(',') if t.strip()]
+                for utype in types:
+                    unit_types[utype]['count'] += card['quantity']
+                    if is_new_card:
+                        unit_types[utype]['cards'].append({
+                            'name': card_name,
+                            'quantity': card['quantity'],
+                            'card_type': card['card_type'],
+                            'cost': card['cost'],
+                        })
+
+            # Detect enablers
+            if is_new_card:
+                for pattern in self.ENABLER_PATTERNS:
+                    if re.search(pattern, card_text_lower):
+                        enablers.append({
+                            'name': card_name,
+                            'quantity': card['quantity'],
+                            'card_type': card['card_type'],
+                            'cost': card['cost'],
+                            'text': card_text[:100] + '...' if len(card_text) > 100 else card_text,
+                        })
+                        break
+
+                # Detect payoffs
+                for pattern in self.PAYOFF_PATTERNS:
+                    if re.search(pattern, card_text_lower):
+                        payoffs.append({
+                            'name': card_name,
+                            'quantity': card['quantity'],
+                            'card_type': card['card_type'],
+                            'cost': card['cost'],
+                            'text': card_text[:100] + '...' if len(card_text) > 100 else card_text,
+                        })
+                        break
+
+        # Detect synergy packages
+        synergy_packages = self._detect_synergy_packages(keywords, unit_types)
+
+        # Sort by count
+        keywords = dict(sorted(keywords.items(), key=lambda x: x[1]['count'], reverse=True))
+        unit_types = dict(sorted(unit_types.items(), key=lambda x: x[1]['count'], reverse=True))
+
+        return SynergyAnalysis(
+            keywords=dict(keywords),
+            unit_types=dict(unit_types),
+            synergy_packages=synergy_packages,
+            enablers=enablers,
+            payoffs=payoffs,
+        )
+
+    def _detect_synergy_packages(self, keywords: dict, unit_types: dict) -> List[dict]:
+        """
+        Detect common synergy packages based on keyword/tribal density.
+
+        Args:
+            keywords: Keyword analysis results
+            unit_types: Unit type analysis results
+
+        Returns:
+            List of detected synergy packages
+        """
+        packages = []
+        total_non_power = len(self.non_power_cards)
+        if total_non_power == 0:
+            return packages
+
+        # Keyword-based packages
+        keyword_packages = {
+            'Lifesteal': {'name': 'Lifesteal Package', 'threshold': 4, 'description': 'Life gain synergies'},
+            'Flying': {'name': 'Evasion Package', 'threshold': 6, 'description': 'Aerial threats'},
+            'Overwhelm': {'name': 'Overwhelm Package', 'threshold': 4, 'description': 'Damage through blockers'},
+            'Aegis': {'name': 'Aegis Package', 'threshold': 4, 'description': 'Protected threats'},
+            'Charge': {'name': 'Aggro Package', 'threshold': 4, 'description': 'Fast damage'},
+            'Warp': {'name': 'Warp Package', 'threshold': 4, 'description': 'Top-deck manipulation'},
+            'Revenge': {'name': 'Revenge Package', 'threshold': 3, 'description': 'Recurring threats'},
+            'Killer': {'name': 'Killer Package', 'threshold': 3, 'description': 'Removal on units'},
+            'Deadly': {'name': 'Deadly Package', 'threshold': 4, 'description': 'Efficient blockers'},
+            'Infiltrate': {'name': 'Infiltrate Package', 'threshold': 3, 'description': 'Face damage payoffs'},
+            'Summon': {'name': 'ETB Effects', 'threshold': 6, 'description': 'Enter-the-battlefield value'},
+            'Entomb': {'name': 'Death Triggers', 'threshold': 4, 'description': 'On-death value'},
+            'Ultimate': {'name': 'Ultimate Package', 'threshold': 3, 'description': 'Late-game power'},
+        }
+
+        for keyword, config in keyword_packages.items():
+            if keyword in keywords and keywords[keyword]['count'] >= config['threshold']:
+                strength = min(1.0, keywords[keyword]['count'] / (config['threshold'] * 2))
+                packages.append({
+                    'name': config['name'],
+                    'type': 'keyword',
+                    'keyword': keyword,
+                    'count': keywords[keyword]['count'],
+                    'cards': keywords[keyword]['cards'],
+                    'strength': round(strength, 2),
+                    'description': config['description'],
+                })
+
+        # Tribal packages (any tribe with 6+ cards)
+        for tribe, data in unit_types.items():
+            if data['count'] >= 6:
+                strength = min(1.0, data['count'] / 16)
+                packages.append({
+                    'name': f'{tribe} Tribal',
+                    'type': 'tribal',
+                    'tribe': tribe,
+                    'count': data['count'],
+                    'cards': data['cards'],
+                    'strength': round(strength, 2),
+                    'description': f'{tribe} creature synergies',
+                })
+
+        # Sort by strength
+        packages.sort(key=lambda x: x['strength'], reverse=True)
+        return packages
+
     def get_full_analysis(self) -> dict:
         """
         Run all analyses and return combined results.
@@ -284,6 +479,7 @@ class DeckAnalyzer:
             'curve': self.analyze_curve(),
             'types': self.analyze_type_distribution(),
             'influence': self.analyze_influence_requirements(),
+            'synergies': self.analyze_synergies(),
             'total_cards': len(self.cards),
             'power_count': len(self.power_cards),
             'non_power_count': len(self.non_power_cards),

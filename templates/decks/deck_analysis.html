@@ -206,6 +206,138 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Synergy Analysis -->
+<div class="bg-gray-800 rounded-lg p-4 mb-6">
+    <h2 class="text-lg font-semibold mb-3">Synergy Analysis</h2>
+
+    <!-- Synergy Packages Detected -->
+    {% if synergies.synergy_packages %}
+    <h3 class="text-md font-semibold mb-2 text-green-400">Detected Synergy Packages</h3>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+        {% for package in synergies.synergy_packages %}
+        <div class="bg-gray-700 rounded p-3 border-l-4 {% if package.type == 'tribal' %}border-amber-500{% else %}border-blue-500{% endif %}">
+            <div class="flex justify-between items-start mb-2">
+                <span class="font-semibold text-white">{{ package.name }}</span>
+                <span class="text-xs px-2 py-1 rounded {% if package.strength >= 0.7 %}bg-green-600{% elif package.strength >= 0.4 %}bg-yellow-600{% else %}bg-gray-600{% endif %}">
+                    {% widthratio package.strength 1 100 %}% strength
+                </span>
+            </div>
+            <p class="text-gray-400 text-sm mb-2">{{ package.description }}</p>
+            <p class="text-gray-500 text-xs">{{ package.count }} cards</p>
+            <div class="mt-2 text-xs text-gray-400">
+                {% for card in package.cards|slice:":5" %}
+                <span class="inline-block bg-gray-600 rounded px-1 mr-1 mb-1">{{ card.quantity }}x {{ card.name }}</span>
+                {% endfor %}
+                {% if package.cards|length > 5 %}
+                <span class="text-gray-500">+{{ package.cards|length|add:"-5" }} more</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500 mb-4">No strong synergy packages detected. Consider focusing your deck around specific themes.</p>
+    {% endif %}
+
+    <!-- Keywords Found -->
+    <h3 class="text-md font-semibold mb-2 text-blue-400">Keywords in Deck</h3>
+    {% if synergies.keywords %}
+    <div class="flex flex-wrap gap-2 mb-6">
+        {% for keyword, data in synergies.keywords.items %}
+        <div class="bg-gray-700 rounded px-3 py-1 text-sm">
+            <span class="text-white">{{ keyword }}</span>
+            <span class="text-gray-400 ml-1">({{ data.count }})</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-gray-500 mb-4">No keywords detected.</p>
+    {% endif %}
+
+    <!-- Unit Types / Tribes -->
+    <h3 class="text-md font-semibold mb-2 text-amber-400">Unit Types (Tribal)</h3>
+    {% if synergies.unit_types %}
+    <div class="overflow-x-auto mb-6">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700">
+                <tr>
+                    <th class="px-3 py-2 text-left">Type</th>
+                    <th class="px-3 py-2 text-center">Count</th>
+                    <th class="px-3 py-2 text-left">Cards</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {% for utype, data in synergies.unit_types.items %}
+                {% if data.count >= 2 %}
+                <tr>
+                    <td class="px-3 py-2 text-amber-400">{{ utype }}</td>
+                    <td class="px-3 py-2 text-center">{{ data.count }}</td>
+                    <td class="px-3 py-2 text-gray-400 text-xs">
+                        {% for card in data.cards|slice:":4" %}{{ card.quantity }}x {{ card.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        {% if data.cards|length > 4 %}...{% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-gray-500 mb-4">No unit types found.</p>
+    {% endif %}
+
+    <!-- Enablers & Payoffs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Enablers -->
+        <div>
+            <h3 class="text-md font-semibold mb-2 text-purple-400">Enablers</h3>
+            <p class="text-gray-500 text-xs mb-2">Cards that buff or grant abilities to other cards</p>
+            {% if synergies.enablers %}
+            <div class="space-y-2">
+                {% for card in synergies.enablers|slice:":8" %}
+                <div class="bg-gray-700 rounded p-2">
+                    <div class="flex justify-between">
+                        <span class="text-white text-sm">{{ card.quantity }}x {{ card.name }}</span>
+                        <span class="text-amber-400 text-xs">{{ card.cost }} cost</span>
+                    </div>
+                    <p class="text-gray-400 text-xs mt-1">{{ card.text }}</p>
+                </div>
+                {% endfor %}
+                {% if synergies.enablers|length > 8 %}
+                <p class="text-gray-500 text-xs">+{{ synergies.enablers|length|add:"-8" }} more enablers</p>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No enablers detected.</p>
+            {% endif %}
+        </div>
+
+        <!-- Payoffs -->
+        <div>
+            <h3 class="text-md font-semibold mb-2 text-cyan-400">Payoffs</h3>
+            <p class="text-gray-500 text-xs mb-2">Cards that scale or benefit from conditions</p>
+            {% if synergies.payoffs %}
+            <div class="space-y-2">
+                {% for card in synergies.payoffs|slice:":8" %}
+                <div class="bg-gray-700 rounded p-2">
+                    <div class="flex justify-between">
+                        <span class="text-white text-sm">{{ card.quantity }}x {{ card.name }}</span>
+                        <span class="text-amber-400 text-xs">{{ card.cost }} cost</span>
+                    </div>
+                    <p class="text-gray-400 text-xs mt-1">{{ card.text }}</p>
+                </div>
+                {% endfor %}
+                {% if synergies.payoffs|length > 8 %}
+                <p class="text-gray-500 text-xs">+{{ synergies.payoffs|length|add:"-8" }} more payoffs</p>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">No payoffs detected.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
