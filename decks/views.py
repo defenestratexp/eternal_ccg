@@ -802,18 +802,26 @@ def deck_goldfish(request, pk):
         if action == 'new_game':
             # Start a new game
             sim = GoldfishSimulator.from_deck(deck)
+            sim.start_turn()  # Start turn 1
             request.session[session_key] = sim.to_dict()
+            request.session.pop(f'{session_key}_turns', None)  # Clear old turn summaries
 
         elif action == 'next_turn':
             # Advance to next turn
             sim_data = request.session.get(session_key)
             if sim_data:
                 sim = GoldfishSimulator.from_dict(sim_data)
-                sim.start_turn()
+                turn_info = sim.start_turn()
                 sim.auto_play_turn()
                 request.session[session_key] = sim.to_dict()
+                # Store drawn card info for display
+                if turn_info.get('drawn_card'):
+                    request.session[f'{session_key}_drawn'] = turn_info['drawn_card'].name
+                else:
+                    request.session.pop(f'{session_key}_drawn', None)
             else:
                 sim = GoldfishSimulator.from_deck(deck)
+                sim.start_turn()  # Start turn 1
                 request.session[session_key] = sim.to_dict()
 
         elif action == 'play_card':
@@ -845,6 +853,7 @@ def deck_goldfish(request, pk):
         sim = GoldfishSimulator.from_dict(sim_data)
     else:
         sim = GoldfishSimulator.from_deck(deck)
+        sim.start_turn()  # Start turn 1
         request.session[session_key] = sim.to_dict()
 
     state = sim.get_state_summary()
@@ -853,12 +862,16 @@ def deck_goldfish(request, pk):
     # Get turn summaries if we did a simulate_10
     turn_summaries = request.session.get(f'{session_key}_turns', [])
 
+    # Get drawn card name if available
+    drawn_card_name = request.session.get(f'{session_key}_drawn')
+
     context = {
         'deck': deck,
         'state': state,
         'playable_cards': playable,
         'playable_ids': [id(c) for c in playable],
         'turn_summaries': turn_summaries,
+        'drawn_card_name': drawn_card_name,
     }
     return render(request, 'decks/deck_goldfish.html', context)
 
