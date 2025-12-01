@@ -130,15 +130,29 @@ class DeckAnalyzer:
     FACTIONS = {'F': 'Fire', 'T': 'Time', 'J': 'Justice', 'P': 'Primal', 'S': 'Shadow'}
 
     # Keywords to detect in card text
-    KEYWORDS = [
-        'Flying', 'Overwhelm', 'Lifesteal', 'Deadly', 'Quickdraw', 'Endurance',
-        'Aegis', 'Charge', 'Unblockable', 'Revenge', 'Destiny', 'Echo',
-        'Warp', 'Infiltrate', 'Killer', 'Reckless', 'Scout', 'Mentor',
-        'Student', 'Tribute', 'Ultimate', 'Summon', 'Entomb', 'Spark',
-        'Spellcraft', 'Empower', 'Twist', 'Plunder', 'Imbue', 'Inscribe',
-        'Amplify', 'Invoke', 'Bond', 'Ally', 'Renown', 'Berserk',
-        'Double Damage', 'Lifegain', 'Silence', 'Stun', 'Shift',
+    # Battle Skills (affect combat, persist on units/weapons)
+    BATTLE_SKILLS = [
+        'Aegis', 'Berserk', 'Charge', 'Deadly', 'Decay', 'Double Damage',
+        'Endurance', 'Exalted', 'Flying', 'Killer', 'Lifesteal', 'Nomad',
+        'Overwhelm', 'Quickdraw', 'Reckless', 'Regen', 'Revenge', 'Taunt',
+        'Unblockable', 'Valor', 'Warcry',
     ]
+
+    # Other Skills (non-battle keywords)
+    OTHER_SKILLS = [
+        'Ambush', 'Bond', 'Destiny', 'Echo', 'Imbue', 'Inscribe', 'Pledge',
+        'Stealth', 'Swift', 'Unleash', 'Versatile', 'Voidbound', 'Warp',
+    ]
+
+    # Trigger Keywords (activated by game events)
+    TRIGGER_KEYWORDS = [
+        'Summon', 'Entomb', 'Tribute', 'Empower', 'Spark', 'Amplify',
+        'Lifeforce', 'Infiltrate', 'Ultimate', 'Fate', 'Mentor', 'Student',
+        'Ally', 'Renown', 'Spellcraft', 'Plunder', 'Twist', 'Invoke',
+    ]
+
+    # Combined list for keyword detection
+    KEYWORDS = BATTLE_SKILLS + OTHER_SKILLS + TRIGGER_KEYWORDS
 
     # Patterns indicating enablers (cards that grant abilities to others)
     ENABLER_PATTERNS = [
