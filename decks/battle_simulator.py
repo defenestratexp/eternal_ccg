@@ -3,6 +3,58 @@ Deck vs Deck Battle Simulator for Eternal Card Game.
 
 Simulates games between two decks using simplified game rules.
 Tracks win rates, game length, and key statistics.
+
+ARCHITECTURE OVERVIEW
+=====================
+This module simulates actual games between two decks. Unlike goldfishing,
+both players take actions and combat resolves with damage. This lets you
+estimate matchup win rates through Monte Carlo simulation.
+
+SIMPLIFIED RULES (vs Real Eternal):
+- 25 starting health (real game uses 25)
+- 7-card hand, mulligan to 6 if power count outside 2-4 range
+- One power per turn, one card drawn per turn
+- Units have summoning sickness (can't attack first turn)
+- Combat: all units attack, defender assigns blockers
+- Unblocked attackers deal damage to face
+- Win condition: opponent at 0 health or decks out
+
+MAJOR SIMPLIFICATIONS:
+- No spell effects (spells are cast but do nothing)
+- No keywords (Flying, Deadly, Overwhelm, etc. ignored)
+- No attachments or relics
+- No market access
+- Simple blocking AI (block biggest attacker with biggest blocker)
+- Simple play AI (play power, then biggest affordable units)
+
+Accuracy Notes:
+- Best for comparing aggro/midrange matchups based on raw stats
+- Not accurate for combo decks, control matchups, or keyword-heavy decks
+- Results should be taken as rough estimates, not precise predictions
+
+USAGE
+=====
+    from decks.battle_simulator import BattleSimulator
+
+    sim = BattleSimulator.from_decks(deck1, deck2)
+
+    # Single game
+    result = sim.simulate_game()
+    print(f"Winner: {result.winner}, Turns: {result.turns}")
+
+    # Monte Carlo (100 games)
+    results = sim.simulate_games(100)
+    print(f"Deck 1 win rate: {results.player1_win_rate}%")
+
+DESIGN DECISIONS
+================
+1. Random starting player each game (50/50)
+2. Simple mulligan: shuffle back and draw 6 if <2 or >4 power
+3. Combat resolves immediately (no declare attackers -> blockers -> damage phases)
+4. Blocking heuristic: block highest attack with highest health
+5. AI plays all affordable units each turn (no holding back)
+6. Max 30 turns to prevent infinite games
+7. Deck-out is a loss condition
 """
 
 import random

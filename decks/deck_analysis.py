@@ -6,6 +6,56 @@ Provides various analysis features:
 - Card type distribution
 - Influence requirements analysis
 - Synergy detection
+
+ARCHITECTURE OVERVIEW
+=====================
+This module provides comprehensive deck composition analysis. It examines what
+cards are in a deck and how they work together, without any randomization.
+
+Analysis Types:
+1. CURVE ANALYSIS - Distribution of cards by power cost
+   - Shows where the deck's plays concentrate (aggro peaks at 1-2, control at 4+)
+   - Calculates average mana cost of non-power cards
+   - Identifies curve peaks and gaps
+
+2. TYPE DISTRIBUTION - Breakdown by card type
+   - Units vs Spells vs Attachments vs Relics
+   - Percentage calculations for deck composition
+   - Grouped card lists for reference
+
+3. INFLUENCE REQUIREMENTS - Casting difficulty analysis
+   - Identifies cards with demanding influence (e.g., FFF, PPSS)
+   - Calculates "difficulty score": cost + (pips * 2) + (factions * 3)
+   - Flags potential bottlenecks (cards hard to cast on curve)
+
+4. SYNERGY ANALYSIS - Keyword and tribal detection
+   - Scans card text for ~40 Eternal keywords (Flying, Lifesteal, Aegis, etc.)
+   - Parses unit types for tribal synergies (Soldier, Valkyrie, etc.)
+   - Detects "enablers" (cards that grant abilities) vs "payoffs" (cards that benefit)
+   - Identifies synergy packages when keyword/tribal density exceeds threshold
+
+USAGE
+=====
+    from decks.deck_analysis import DeckAnalyzer
+
+    analyzer = DeckAnalyzer(deck)
+
+    # Individual analyses
+    curve = analyzer.analyze_curve()
+    types = analyzer.analyze_type_distribution()
+    influence = analyzer.analyze_influence_requirements()
+    synergies = analyzer.analyze_synergies()
+
+    # Or get everything at once
+    full = analyzer.get_full_analysis()
+
+DESIGN DECISIONS
+================
+1. Market cards are excluded from analysis (main deck only)
+2. Each card counted by quantity (4x Torch = 4 cards in curve)
+3. Card lists deduplicated for display (show card once with quantity)
+4. Synergy packages require minimum thresholds (e.g., 4+ Lifesteal cards)
+5. Difficulty scoring weights multi-faction cards higher than single-faction
 """
 
 import re

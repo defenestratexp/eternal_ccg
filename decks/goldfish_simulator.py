@@ -3,6 +3,67 @@ Goldfish Simulator for Eternal Card Game decks.
 
 Simulates playing out turns against an imaginary opponent (goldfishing).
 Tracks power development, playable cards, and deck progression.
+
+ARCHITECTURE OVERVIEW
+=====================
+"Goldfishing" is a card game term meaning to play your deck against an imaginary
+opponent who does nothing (like playing against a goldfish). This lets you test
+how your deck develops over multiple turns without opponent interaction.
+
+What This Simulates:
+- Drawing opening hand (7 cards)
+- Turn-by-turn progression: untap power, draw card, play cards
+- Power development and influence accumulation
+- Playing units to battlefield, casting spells
+- Tracking total attack power on board
+
+What This Does NOT Simulate:
+- Opponent actions (blocking, removal, etc.)
+- Combat damage (just tracks potential damage)
+- Card abilities (spells have no effect)
+- Market/Smuggler access
+
+Two Modes:
+1. INTERACTIVE - User advances turns manually, can choose which cards to play
+2. AUTO-PLAY - AI plays turns automatically using simple heuristics:
+   - Always play power if available
+   - Play highest-cost unit that's affordable
+   - Then play spells with remaining power
+
+Game State Tracking:
+- Hand, Deck, Battlefield, Void (graveyard)
+- Power available vs max power
+- Influence per faction
+- Total damage potential (sum of unit attack values)
+- Cards played, spells cast
+
+USAGE
+=====
+    sim = GoldfishSimulator.from_deck(deck)
+    sim.start_turn()  # Begin turn 1
+
+    # Manual play
+    playable = sim.get_playable_cards()
+    result = sim.play_card(playable[0])
+
+    # Or auto-play
+    actions = sim.auto_play_turn()
+
+    # Simulate multiple turns
+    summaries = sim.simulate_turns(10)
+
+SESSION PERSISTENCE
+==================
+State serialized via to_dict()/from_dict() for Django sessions.
+Allows user to step through turns across page refreshes.
+
+DESIGN DECISIONS
+================
+1. Player is "on the play" (no draw turn 1)
+2. Power cards go to void after playing (simplified - real game has power "in play")
+3. No summoning sickness tracked (goldfish doesn't interact anyway)
+4. Auto-play prioritizes biggest threats (highest cost units first)
+5. Units track attack/health but no damage is actually dealt
 """
 
 import random
