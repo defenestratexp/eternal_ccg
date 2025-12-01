@@ -3,6 +3,45 @@ Power Calculator for Eternal Card Game decks.
 
 Calculates the probability of drawing enough power and influence
 using hypergeometric distribution, similar to ShiftStoned's EPC.
+
+ARCHITECTURE OVERVIEW
+=====================
+This module provides mathematical analysis of a deck's power base (mana system).
+It answers questions like "What are the odds of having 3 power by turn 3?" or
+"Can I reliably cast my FFS card on curve?"
+
+Key Concepts:
+- Power: Eternal's mana equivalent. You need power to play cards.
+- Influence: Faction-specific requirements (Fire, Time, Justice, Primal, Shadow).
+  A card costing 3FFS needs 3 power AND 1 Fire influence AND 2 Shadow influence.
+- Depleted: Some power cards enter "depleted" (tapped) and can't be used immediately.
+
+Mathematical Approach:
+- Uses hypergeometric distribution (drawing without replacement from a finite population)
+- P(at least k successes) = sum of P(X=i) for i=k to min(n,K)
+- Where N=deck size, K=successes in deck, n=cards drawn, k=desired successes
+
+USAGE
+=====
+    from decks.power_calculator import DeckPowerAnalyzer
+
+    analyzer = DeckPowerAnalyzer(deck)
+
+    # Odds of having 4 power by turn 4
+    odds = analyzer.calculate_power_odds(power_needed=4, by_turn=4)
+
+    # Odds of having FF influence by turn 3
+    odds = analyzer.calculate_influence_odds('F', 2, by_turn=3)
+
+    # Full power table for display
+    table = analyzer.generate_power_table(max_turns=10)
+
+DESIGN DECISIONS
+================
+1. Cards drawn = 6 + turn (7-card hand, draw 1/turn starting turn 2)
+2. Influence odds calculated independently then multiplied (approximation)
+3. Colorless power sources tracked separately (provide power but no faction influence)
+4. Conditional depleted cards (e.g., "Depleted unless you have 2 Fire") tracked for display
 """
 
 import math

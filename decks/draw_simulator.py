@@ -6,6 +6,57 @@ Simulates drawing opening hands with the game's mulligan mechanics:
 - First redraw: 7 cards, guaranteed 2-4 power
 - Second redraw: 6 cards, guaranteed 2-4 power
 - After that, must keep
+
+ARCHITECTURE OVERVIEW
+=====================
+This module simulates the opening hand experience in Eternal. Unlike the power
+calculator (which uses math), this uses actual randomization to let users
+"feel" their deck's opening hands.
+
+Two Modes of Operation:
+1. INTERACTIVE DRAW - User draws hands and decides to keep/mulligan
+   - Used in the Draw Sim page
+   - State persisted in Django session via to_dict()/from_dict()
+   - Shows actual card images from hand
+
+2. MONTE CARLO SIMULATION - Run 1000+ hands to get statistics
+   - Used in the Hand Stats page
+   - Automated mulligan decisions (mulligan if <2 or >4 power)
+   - Tracks: power distribution, mulligan rates, card appearance rates, playability
+
+Eternal's Mulligan System:
+- First hand: Completely random 7 cards
+- First redraw: 7 cards with GUARANTEED 2-4 power (game forces this)
+- Second redraw: Only 6 cards with guaranteed 2-4 power (penalty)
+- No more mulligans after that
+
+USAGE
+=====
+    # Interactive mode
+    sim = DrawSimulator.from_deck(deck)
+    hand = sim.current_hand  # Initial 7 cards
+    new_hand, can_mulligan = sim.mulligan()  # Take a mulligan
+    stats = sim.get_hand_stats()  # Analyze current hand
+
+    # Monte Carlo mode
+    results = DrawSimulator.run_opening_hand_simulation(deck, num_simulations=1000)
+    print(results['keep_rate_pct'])  # How often we keep first hand
+    print(results['hands_screw_pct'])  # % of hands with 0-1 power
+
+SESSION PERSISTENCE
+==================
+The simulator state is serialized to JSON for Django session storage:
+- to_dict(): Convert state to JSON-serializable dict
+- from_dict(): Reconstruct simulator from stored dict
+This allows the user to mulligan across page refreshes.
+
+DESIGN DECISIONS
+================
+1. Market cards excluded (main deck only, as in actual game)
+2. Card identity preserved via object id() for tracking through shuffles
+3. Mulligan logic matches game: 2-4 power guaranteed, not 2-3 or 3-4
+4. Monte Carlo uses simple heuristic: always mulligan if power outside 2-4 range
+5. Statistics include both initial hand and post-mulligan distributions
 """
 
 import random
