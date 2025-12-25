@@ -916,9 +916,14 @@ def deck_import(request):
             if not line:
                 continue
 
-            # Check for market separator
-            if 'MARKET' in line.upper() or line.startswith('-'):
+            # Check for market separator (e.g., "---------------MARKET---------------")
+            # Must contain MARKET and be a separator line (starts with dash or is all dashes/spaces)
+            if 'MARKET' in line.upper() and (line.startswith('-') or line.replace('-', '').replace(' ', '') == 'MARKET'):
                 in_market = True
+                continue
+
+            # Skip format lines like "FORMAT:Throne"
+            if line.upper().startswith('FORMAT:'):
                 continue
 
             match = card_pattern.match(line)

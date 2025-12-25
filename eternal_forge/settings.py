@@ -46,6 +46,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -130,6 +131,14 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+}
 
 # Media files (uploaded content)
 MEDIA_URL = 'media/'
@@ -147,7 +156,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # =============================================================================
 
 # Path to card data JSON file
-CARD_DATA_FILE = BASE_DIR / 'data' / 'eternal-cards.json'
+# Can be overridden via CARD_DATA_PATH env var for container deployments
+CARD_DATA_FILE = Path(os.environ.get('CARD_DATA_PATH', str(BASE_DIR / 'data' / 'eternal-cards.json')))
 
 # Deck building rules (from Eternal Card Game official rules)
 DECK_RULES = {
