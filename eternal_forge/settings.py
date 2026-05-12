@@ -90,6 +90,11 @@ DATABASES = {
         'PASSWORD': os.environ.get('DB_PASSWORD', 'eternal_forge'),
         'HOST': os.environ.get('DB_HOST', 'localhost'),
         'PORT': os.environ.get('DB_PORT', '5432'),
+        # Pool connections across requests. Default is 0 (open/close per
+        # request), which costs ~1 round-trip per request. 60s matters now
+        # that the DB lives off-host (db-host Postgres). See CLAUDE.md
+        # §"Database connection pooling" for the schema-drift caveat.
+        'CONN_MAX_AGE': 60,
     }
 }
 
