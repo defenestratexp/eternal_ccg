@@ -26,6 +26,26 @@ DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
 ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,203.0.113.10,workstation.example.com').split(',')
 
+# Behind the k3s-util nginx reverse proxy, TLS terminates at the proxy and the
+# request reaches gunicorn over plain HTTP. Without this, request.is_secure() is
+# False, so Django builds an http:// origin and rejects the browser's https://
+# Origin header on every POST with a CSRF failure.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Django 4+ checks the Origin header on unsafe requests against this list.
+# Defaults to both schemes for every non-local ALLOWED_HOSTS entry so the two
+# stay in sync; override with DJANGO_CSRF_TRUSTED_ORIGINS if they need to differ.
+_csrf_env = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '')
+if _csrf_env.strip():
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_env.split(',') if o.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        f'{scheme}://{host}'
+        for host in (h.strip() for h in ALLOWED_HOSTS)
+        if host and host not in ('localhost', '127.0.0.1', '*')
+        for scheme in ('https', 'http')
+    ]
+
 
 # Application definition
 
