@@ -24,9 +24,9 @@ SECRET_KEY = os.environ.get(
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,203.0.113.10,workstation.example.com').split(',')
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-# Behind the k3s-util nginx reverse proxy, TLS terminates at the proxy and the
+# Behind an nginx reverse proxy, TLS terminates at the proxy and the
 # request reaches gunicorn over plain HTTP. Without this, request.is_secure() is
 # False, so Django builds an http:// origin and rejects the browser's https://
 # Origin header on every POST with a CSRF failure.
@@ -112,8 +112,8 @@ DATABASES = {
         'PORT': os.environ.get('DB_PORT', '5432'),
         # Pool connections across requests. Default is 0 (open/close per
         # request), which costs ~1 round-trip per request. 60s matters now
-        # that the DB lives off-host (db-host Postgres). See CLAUDE.md
-        # §"Database connection pooling" for the schema-drift caveat.
+        # that the DB lives off-host (a separate Postgres server). See the
+        # project notes on connection pooling for the schema-drift caveat.
         'CONN_MAX_AGE': 60,
     }
 }

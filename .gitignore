@@ -64,3 +64,6 @@ htmlcov/
 # Celery
 celerybeat-schedule
 celerybeat.pid
+
+# Local assistant notes (contain internal infrastructure details)
+CLAUDE.md

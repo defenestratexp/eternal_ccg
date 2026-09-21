@@ -17,7 +17,10 @@ pipeline {
         // ECR_REPO note: existing eternal-forge image is at <registry>/eternal-forge
         // (no n9n/ prefix), unlike newer apps such as n9n/wagtail-devops. Preserved
         // here to avoid an unrelated image-path migration.
-        ECR_REGISTRY = '123456789012.dkr.ecr.us-west-2.amazonaws.com'
+        // Registry and target cluster come from Jenkins global environment
+        // variables, so no account id or internal host name lives in this repo.
+        ECR_REGISTRY = "${env.AWS_ECR_REGISTRY}"
+        DEPLOY_CLUSTER = "${env.APPS_K8S_CLUSTER}"
         ECR_REPO = 'eternal-forge'
         AWS_REGION = 'us-west-2'
         IMAGE_TAG = "${env.BUILD_NUMBER}"
@@ -30,6 +33,11 @@ pipeline {
             stages {
                 stage('Checkout') {
                     steps {
+                        script {
+                            if (!env.AWS_ECR_REGISTRY?.trim() || !env.APPS_K8S_CLUSTER?.trim()) {
+                                error('Set the AWS_ECR_REGISTRY and APPS_K8S_CLUSTER global environment variables in Jenkins')
+                            }
+                        }
                         checkout scm
                     }
                 }
@@ -53,8 +61,8 @@ pipeline {
                             script {
                                 sh """
                                     docker run --rm \
-                                        -e AWS_ACCESS_KEY_ID=\$AWS_ACCESS_KEY_ID \
-                                        -e AWS_SECRET_ACCESS_KEY=\$AWS_SECRET_ACCESS_KEY \
+                                        -e AWS_ACCESS_KEY_ID \
+                                        -e AWS_SECRET_ACCESS_KEY \
                                         amazon/aws-cli ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
                                     docker push ${ECR_REGISTRY}/${ECR_REPO}:${IMAGE_TAG}
                                     docker push ${ECR_REGISTRY}/${ECR_REPO}:latest
@@ -81,7 +89,7 @@ pipeline {
             steps {
                 build job: 'n9n-k8s',
                     parameters: [
-                        string(name: 'CLUSTER', value: 'k3s-main'),
+                        string(name: 'CLUSTER', value: env.DEPLOY_CLUSTER),
                         string(name: 'ACTION', value: 'refresh-ecr'),
                         string(name: 'NAMESPACE', value: 'eternal-system'),
                         booleanParam(name: 'DRY_RUN', value: false)
@@ -94,7 +102,7 @@ pipeline {
             steps {
                 build job: 'n9n-k8s',
                     parameters: [
-                        string(name: 'CLUSTER', value: 'k3s-main'),
+                        string(name: 'CLUSTER', value: env.DEPLOY_CLUSTER),
                         string(name: 'ACTION', value: 'restart'),
                         string(name: 'NAMESPACE', value: 'eternal-system'),
                         string(name: 'APP', value: 'eternal-forge'),
@@ -120,7 +128,7 @@ pipeline {
             }
         }
         success {
-            echo 'Deployment successful! Site available at http://eternal.example.internal'
+            echo 'Deployment successful!'
         }
         failure {
             echo 'Deployment failed. Check logs for details.'

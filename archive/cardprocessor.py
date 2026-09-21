@@ -1,4 +1,4 @@
-#!/home/user/.virtualenvs/n9n/bin/python
+#!/usr/bin/env python3
 
 import csv
 import os
