@@ -1,0 +1,27 @@
+direction: down
+
+dev: Developer {shape: person}
+repo: GitHub repo {shape: cloud}
+
+jenkins: Jenkins {
+  build: "docker build\n(tag: build number + latest)"
+  push: "push to registry"
+  refresh: "downstream k8s job:\nrefresh-ecr"
+  restart: "downstream k8s job:\nrestart eternal-forge"
+  notify: "notifyJenkinsBuild\n(ntfy)"
+  build -> push -> refresh -> restart -> notify
+}
+
+ecr: "ECR registry\n(AWS_ECR_REGISTRY)" {shape: cylinder}
+
+cluster: "k3s cluster\n(APPS_K8S_CLUSTER)" {
+  secret: "image pull secret\n(namespace eternal-system)"
+  deploy: "eternal-forge deployment"
+}
+
+dev -> repo: git push
+repo -> jenkins.build: checkout
+jenkins.push -> ecr
+jenkins.refresh -> cluster.secret: update
+jenkins.restart -> cluster.deploy: rollout restart
+cluster.deploy -> ecr: "pull :latest"

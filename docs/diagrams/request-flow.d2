@@ -1,0 +1,33 @@
+direction: down
+
+user: Browser {shape: person}
+
+cdn: CDNs {
+  shape: cloud
+  label: "CDNs\n(Tailwind, htmx)"
+}
+
+cardimg: Card images {
+  shape: cloud
+  label: "Card image host\n(URLs from card data)"
+}
+
+cluster: k3s cluster {
+  proxy: "Reverse proxy\n(TLS termination)"
+  app: eternal-forge container {
+    gunicorn: "gunicorn :8000"
+    django: "Django apps\ncards / collection / decks"
+    static: "whitenoise\n(static files)"
+    gunicorn -> django
+    gunicorn -> static
+  }
+  proxy -> app.gunicorn: "HTTP + X-Forwarded-Proto"
+}
+
+db: External Postgres {shape: cylinder}
+
+user -> cluster.proxy: HTTPS
+user -> cdn: CSS / JS
+user -> cardimg: card art
+cluster.app.django -> db: "ORM (CONN_MAX_AGE 60s)"
+cluster.app.django -> cardimg: "fetch thumbnails\n(deck image export)"
