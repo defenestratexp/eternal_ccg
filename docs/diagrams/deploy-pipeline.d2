@@ -1,27 +1,55 @@
+# Renders only inside the N9N d2 pipeline (filer icon library + lib/style.d2); docs/diagrams/deploy-pipeline.png is the published image.
+...@../../lib/style.d2
+...@/mnt/n9n/assets/icons/d2/aws.d2
+...@/mnt/n9n/assets/icons/d2/simple.d2
+...@/mnt/n9n/assets/icons/d2/k8s.d2
+...@/mnt/n9n/assets/icons/d2/tabler.d2
+vars: {d2-config: {layout-engine: dagre}}
 direction: down
+title: "eternal-forge — deploy pipeline" {class: title}
 
-dev: Developer {shape: person}
-repo: GitHub repo {shape: cloud}
+dev: "Developer" {class: [svc; tabler-user]}
+repo: "GitHub repo" {class: [svc; simple-github]}
 
-jenkins: Jenkins {
-  build: "docker build\n(tag: build number + latest)"
-  push: "push to registry"
-  refresh: "downstream k8s job:\nrefresh-ecr"
-  restart: "downstream k8s job:\nrestart eternal-forge"
-  notify: "notifyJenkinsBuild\n(ntfy)"
-  build -> push -> refresh -> restart -> notify
+jenkins: "Jenkins" {
+  class: [zone; simple-jenkins]
+  grid-columns: 5
+  grid-gap: 60
+  build: "docker build\ntag: build number\n+ latest" {class: [small; simple-docker]}
+  push: "push to\nregistry" {class: [small; tabler-upload]}
+  refresh: "downstream\nk8s job:\nrefresh-ecr" {class: [small; k8s-job]}
+  restart: "downstream\nk8s job: restart\neternal-forge" {class: [small; k8s-job]}
+  notify: "notifyJenkinsBuild\n(ntfy, final result)" {class: [small; simple-ntfy]}
+  build -> push -> refresh -> restart {class: flow}
+  restart -> notify: "post: always" {class: async}
 }
 
-ecr: "ECR registry\n(AWS_ECR_REGISTRY)" {shape: cylinder}
 
-cluster: "k3s cluster\n(APPS_K8S_CLUSTER)" {
-  secret: "image pull secret\n(namespace eternal-system)"
-  deploy: "eternal-forge deployment"
+run: "" {
+  style.fill: transparent
+  style.stroke: transparent
+  grid-columns: 2
+  grid-gap: 60
+  cluster: "k3s cluster (APPS_K8S_CLUSTER)" {
+    class: zone
+    grid-columns: 2
+    grid-gap: 70
+    secret: "image pull secret\n(namespace\neternal-system)" {class: [small; k8s-secret]}
+    deploy: "eternal-forge\ndeployment" {class: [small; k8s-deploy]}
+  }
+  reg: "" {
+    style.fill: transparent
+    style.stroke: transparent
+    ecr: "Amazon ECR\n(AWS_ECR_REGISTRY)" {class: [svc; aws-amazonelasticcontainerregistry]}
+  }
 }
 
-dev -> repo: git push
-repo -> jenkins.build: checkout
-jenkins.push -> ecr
-jenkins.refresh -> cluster.secret: update
-jenkins.restart -> cluster.deploy: rollout restart
-cluster.deploy -> ecr: "pull :latest"
+dev -> repo: "git push" {class: flow}
+repo -> jenkins.build: "checkout" {class: flow}
+jenkins.push -> run.reg.ecr {class: flow}
+jenkins.refresh -> run.cluster.secret: "update" {class: secret}
+jenkins.restart -> run.cluster.deploy: "rollout restart" {class: flow}
+run.cluster.deploy -> run.reg.ecr: "pull :latest" {class: flow}
+
+# layout helpers (invisible): grid children do not rank, so rank the containers
+jenkins -> run: {style.opacity: 0}

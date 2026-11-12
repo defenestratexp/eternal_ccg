@@ -1,33 +1,40 @@
-direction: down
+# Renders only inside the N9N d2 pipeline (filer icon library + lib/style.d2); docs/diagrams/request-flow.png is the published image.
+...@../../lib/style.d2
+...@/mnt/n9n/assets/icons/d2/simple.d2
+...@/mnt/n9n/assets/icons/d2/cncf.d2
+...@/mnt/n9n/assets/icons/d2/tabler.d2
+vars: {d2-config: {layout-engine: dagre}}
+direction: right
+title: "eternal-forge — request flow" {class: title}
 
-user: Browser {shape: person}
+user: "Browser" {class: [svc; tabler-browser]}
 
-cdn: CDNs {
-  shape: cloud
-  label: "CDNs\n(Tailwind, htmx)"
+cdn: "CDNs" {
+  class: zone
+  tw: "Tailwind" {class: [small; simple-tailwindcss]}
+  htmx: "htmx" {class: [small; simple-htmx]}
 }
 
-cardimg: Card images {
-  shape: cloud
-  label: "Card image host\n(URLs from card data)"
-}
-
-cluster: k3s cluster {
-  proxy: "Reverse proxy\n(TLS termination)"
-  app: eternal-forge container {
-    gunicorn: "gunicorn :8000"
-    django: "Django apps\ncards / collection / decks"
-    static: "whitenoise\n(static files)"
-    gunicorn -> django
-    gunicorn -> static
+cluster: "k3s cluster" {
+  class: zone
+  proxy: "Reverse proxy\n(TLS termination)" {class: [svc; tabler-shield-lock]}
+  app: "eternal-forge container" {
+    class: subzone
+    gunicorn: "gunicorn :8000" {class: [small; simple-gunicorn]}
+    django: "Django apps\ncards / collection\n/ decks" {class: [small; simple-django]}
+    static: "whitenoise\n(static files)" {class: [small; tabler-files]}
+    gunicorn -> django {class: flow}
+    gunicorn -> static {class: flow}
   }
-  proxy -> app.gunicorn: "HTTP + X-Forwarded-Proto"
+  proxy -> app.gunicorn: "HTTP +\nX-Forwarded-Proto" {class: flow}
 }
 
-db: External Postgres {shape: cylinder}
+db: "External PostgreSQL" {class: [svc; simple-postgresql]}
+cardimg: "Card image host\n(URLs from card data)" {class: [svc; tabler-photo]}
 
-user -> cluster.proxy: HTTPS
-user -> cdn: CSS / JS
-user -> cardimg: card art
-cluster.app.django -> db: "ORM (CONN_MAX_AGE 60s)"
-cluster.app.django -> cardimg: "fetch thumbnails\n(deck image export)"
+
+user -> cluster.proxy: "HTTPS" {class: flow}
+user -> cdn: "CSS / JS" {class: flow}
+user -> cardimg: "card art" {class: flow}
+cluster.app.django -> db: "ORM\n(CONN_MAX_AGE 60s)" {class: flow}
+cluster.app.django -> cardimg: "fetch thumbnails\n(deck image export)" {class: flow}
